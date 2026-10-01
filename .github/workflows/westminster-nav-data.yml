@@ -1,0 +1,40 @@
+# Rebuilds westminster-nav/data/city.json from OpenStreetMap and commits it
+# back to the branch. Run it from the Actions tab ("Run workflow"), or it runs
+# automatically when the data builder changes.
+name: Westminster Nav - build map data
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - westminster-nav/tools/build-data.mjs
+      - .github/workflows/westminster-nav-data.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: westminster-nav-data-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build city.json from OpenStreetMap
+        run: node westminster-nav/tools/build-data.mjs
+      - name: Commit updated data
+        run: |
+          if git diff --quiet -- westminster-nav/data/city.json; then
+            echo "Map data unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add westminster-nav/data/city.json
+          git commit -m "Westminster Nav: rebuild map data from OpenStreetMap"
+          git push
