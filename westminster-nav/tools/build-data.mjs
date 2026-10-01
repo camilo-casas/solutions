@@ -16,7 +16,13 @@ import { pointInRings, distance, bearing } from '../js/lib/geo.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = join(here, '..', 'data', 'city.json');
-const OVERPASS = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
+// Public Overpass servers are often busy; try each in turn.
+const OVERPASS = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
 const SEARCH_BOX = [39.78, -105.20, 40.02, -104.95]; // S, W, N, E around Westminster
 const MAX_ADDRESSES = 6000;
 
@@ -35,10 +41,11 @@ function rng(seed) {
 }
 
 async function overpass(query, label) {
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    process.stderr.write(`overpass: ${label} (attempt ${attempt})\n`);
+  for (let attempt = 1; attempt <= 3 * OVERPASS.length; attempt++) {
+    const url = OVERPASS[(attempt - 1) % OVERPASS.length];
+    process.stderr.write(`overpass: ${label} via ${new URL(url).host} (attempt ${attempt})\n`);
     try {
-      const res = await fetch(OVERPASS, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'westminster-nav-trainer/1.0' },
         body: 'data=' + encodeURIComponent(query),
@@ -48,7 +55,7 @@ async function overpass(query, label) {
     } catch (err) {
       process.stderr.write(`  ${err.message}\n`);
     }
-    await new Promise((r) => setTimeout(r, 5000 * attempt));
+    if (attempt % OVERPASS.length === 0) await new Promise((r) => setTimeout(r, 20000 * attempt));
   }
   throw new Error(`Overpass query failed: ${label}`);
 }
