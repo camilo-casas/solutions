@@ -19,16 +19,24 @@ export function turnSignal(root, ctx) {
     el('div', { class: 'row' }, picker.el),
     scoreBar(store.stats('turn')));
 
+  // Some stations send almost every call the same way. Aim for an even split
+  // of lefts and rights so the answer can't be memorized per station.
   function makeQuestion() {
+    const want = Math.random() < 0.5 ? 'left' : 'right';
+    const s = picker.get();
+    let fallback = null;
     for (let tries = 0; tries < 25; tries++) {
-      const s = picker.get();
-      const start = ctx.stationNode(s);
-      const a = addressAwayFrom(ctx, [s.lat, s.lon], 600);
+      const st = tries < 15 ? s : picker.get();
+      const start = ctx.stationNode(st);
+      const a = addressAwayFrom(ctx, [st.lat, st.lon], 600);
       const target = ctx.addressNode(a);
-      const { opts } = G.departureOptions(start, s.facing, s.street, target);
-      if (opts.left && opts.right && isFinite(opts.left.cost) && isFinite(opts.right.cost)) return { s, a, start, target, opts };
+      const { opts } = G.departureOptions(start, st.facing, st.street, target);
+      if (!(opts.left && opts.right && isFinite(opts.left.cost) && isFinite(opts.right.cost))) continue;
+      const q = { s: st, a, start, target, opts };
+      if ((opts.left.cost <= opts.right.cost ? 'left' : 'right') === want) return q;
+      fallback ??= q;
     }
-    return null;
+    return fallback;
   }
 
   function ask() {

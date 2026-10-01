@@ -7,10 +7,10 @@ import * as store from '../store.js';
 import { COLORS, gridNote } from './common.js';
 
 const KINDS = [
-  { id: 'all', label: 'Everything' },
-  { id: 'station', label: 'Fire stations' },
+  { id: 'key', label: 'Hospitals + stations' },
   { id: 'hospital', label: 'Hospitals' },
-  { id: 'other', label: 'Landmarks' },
+  { id: 'station', label: 'WFD stations' },
+  { id: 'all', label: 'Everything on the map' },
 ];
 const TYPE_LABEL = {
   station: 'WFD station', hospital: 'Hospital', fire_station: 'Fire station', police: 'Police', townhall: 'City building',
@@ -22,18 +22,25 @@ const ROSE = ['NW', 'N', 'NE', 'W', null, 'E', 'SW', 'S', 'SE'];
 const KEYS = { 7: 'NW', 8: 'N', 9: 'NE', 4: 'W', 6: 'E', 1: 'SW', 2: 'S', 3: 'SE', q: 'NW', w: 'N', e: 'NE', a: 'W', d: 'E', z: 'SW', x: 'S', c: 'SE' };
 
 export function cardinal(root, ctx) {
-  const prefs = store.load('cardinal:prefs', { kind: 'all' });
-  const pois = [
-    ...ctx.stations.map((s) => ({ name: s.name, type: 'station', p: [s.lat, s.lon], w: 3 })),
-    ...ctx.city.pois
-      // WFD's own stations come from stations.json, not the map data.
-      .filter(([name, type]) => !(type === 'fire_station' && /westminster/i.test(name)))
-      .map(([name, type, lat, lon]) => ({ name, type, p: [lat, lon], w: type === 'hospital' ? 3 : 1 })),
+  const prefs = store.load('cardinal:prefs', { kind: 'key' });
+  if (!KINDS.some((k) => k.id === prefs.kind)) prefs.kind = 'key';
+  // The hospitals crews actually transport to (data/landmarks.json), the WFD
+  // stations, then everything else the map data knows about.
+  const key = [
+    ...ctx.landmarks.map((l) => ({ name: l.name, city: l.city, type: l.type, p: [l.lat, l.lon], w: 2, key: true })),
+    ...ctx.stations.map((s) => ({ name: `WFD ${s.name}`, city: s.address, type: 'station', p: [s.lat, s.lon], w: 1.5, key: true })),
   ];
-  const ofKind = () => pois.filter((p) => prefs.kind === 'all'
-    || (prefs.kind === 'station' && (p.type === 'station' || p.type === 'fire_station'))
-    || (prefs.kind === 'hospital' && p.type === 'hospital')
-    || (prefs.kind === 'other' && !['station', 'fire_station', 'hospital'].includes(p.type)));
+  const extra = ctx.city.pois
+    // WFD's own stations come from stations.json, not the map data.
+    .filter(([name, type]) => !(type === 'fire_station' && /westminster/i.test(name)))
+    .map(([name, type, lat, lon]) => ({ name, type, p: [lat, lon], w: 1 }))
+    .filter((x) => !key.some((k) => distance(k.p, x.p) < 300));
+  const ofKind = () => {
+    if (prefs.kind === 'hospital') return key.filter((p) => p.type === 'hospital');
+    if (prefs.kind === 'station') return key.filter((p) => p.type === 'station');
+    if (prefs.kind === 'all') return [...key, ...extra];
+    return key;
+  };
 
   const head = el('div', { class: 'game-head' });
   const stage = el('div', { class: 'stage' });
@@ -108,7 +115,7 @@ export function cardinal(root, ctx) {
         el('div', { class: 'face-sub' }, 'Standing at'),
         el('div', { class: 'face-big addr' }, ctx.addressLabel(a)),
         el('div', { class: 'face-sub' }, 'which way is'),
-        el('div', { class: 'face-mid' }, poi.name, ' ', el('span', { class: 'tag' }, TYPE_LABEL[poi.type] || poi.type)),
+        el('div', { class: 'face-mid' }, poi.name, ' ', el('span', { class: 'tag' }, poi.city || TYPE_LABEL[poi.type] || poi.type)),
         timer),
       el('div', { class: 'rose' }, ROSE.map((c) => (c ? btns[c] : el('div', { class: 'rose-center' }, '📍')))));
     onKeys((e) => {

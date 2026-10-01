@@ -10,10 +10,19 @@ It's a static site: plain HTML, CSS and JavaScript modules, with no framework or
 | --- | --- | --- |
 | **Rotations** (flash cards) | Study mode, Name → Block, Block → Name, and Address → Cross streets (`5850 W 94th Ave` → Fenton & Gray). Filter by rotation or anchor streets only. | Leitner spaced repetition: cards you miss come back more often. |
 | **Turn Signal** | You get a station and an address. Pick **left** or **right** out of the bay. | The shortest drive-time route is computed both ways. If they're within 5%, either answer counts. |
-| **Cardinal** | You get an address and a hospital, station or landmark. Pick N, NE, E, SE, S, SW, W or NW. | Straight-line bearing. A neighboring direction gets half credit. |
+| **Cardinal** | You get an address and one of the key hospitals (`data/landmarks.json`) or a WFD station. Pick N, NE, E, SE, S, SW, W or NW. "Everything on the map" adds other landmarks. | Straight-line bearing. A neighboring direction gets half credit. |
 | **Router** | Give turn-by-turn directions: left or right out of the bay, then "Right onto Sheridan Blvd", "Left onto W 92nd Ave", and so on. | The app drives your directions on the real street network and compares the result to the fastest route. |
 
+Turn Signal picks addresses so left and right come up about equally often, even at stations where most calls go one way.
+
 Every answer shows a map with the correct route and explains the grid math (for example, "about 4350 W, between Stuart (4300) and Tennyson (4400)").
+
+## Players and the scoreboard
+
+The start screen asks for a player name, or you can play anonymously. Each name keeps its own scores and flash card progress on the device, and the 👤 chip in the header switches players (handy on a shared station tablet). Anonymous play is never posted.
+
+- **As a Claude artifact**, the scoreboard is shared: everyone who opens the page sees everyone's totals, which are stored in the artifact's database at `scores/<account>`. People need **Contributor** access (or higher) on the artifact to post scores. Viewers can see the board but not post to it.
+- **On GitHub Pages or a local server** there's no backend, so the board lists the named players on that device. A shared board here would need a small backend (Firebase, Supabase, or a Google Sheet behind Apps Script) plugged into `js/scoreboard.js`.
 
 ## Project layout
 
@@ -25,9 +34,11 @@ js/lib/rotations.js   the rotation sheet (Broadway 0 → Alkire 13200)
 js/lib/grid.js        house number <-> coordinates (Denver grid)
 js/lib/graph.js       road graph, fastest routes, turn-by-turn, Router simulator
 js/map.js             canvas map (no tiles, so street names stay hidden until you ask)
-js/games/*.js         the games and the station setup page
+js/games/*.js         the games, start screen, scoreboard and station setup
+js/scoreboard.js      shared (artifact database) or per-device scoreboard
 data/city.json        roads, addresses and points of interest (generated)
-data/stations.json    the six WFD stations (edit this)
+data/stations.json    the six WFD stations: address, bay street, bay facing
+data/landmarks.json   key hospitals for the Cardinal game
 tools/build-data.mjs  builds data/city.json
 ```
 
@@ -38,7 +49,7 @@ tools/build-data.mjs  builds data/city.json
 - `node tools/build-data.mjs` downloads the Westminster city boundary, every drivable road, address points and points of interest (hospitals, fire and police stations, libraries, lakes, malls) from OpenStreetMap through the Overpass API. It also re-fits the address grid to where Sheridan, Wadsworth, W 92nd Ave and the other anchor streets really are. If OpenStreetMap doesn't have enough address points, it fills in addresses generated from the grid. Those are marked "approximate" in the games.
 - `node tools/build-data.mjs --demo` builds an offline demo grid of arterials and rotation streets. It's useful for trying the games, but it is **not** the real road network, and the site shows a banner when it's loaded.
 
-The repository currently ships the demo grid. To switch to real data, either:
+The repository ships real OpenStreetMap data. To refresh it, either:
 
 1. Open the **Actions** tab on GitHub, choose **Westminster Nav - build map data**, and click **Run workflow**. It builds the data and commits it to the branch. Or:
 2. Run `node tools/build-data.mjs` on any computer with Node 18 or newer and internet access, then commit `data/city.json`.
@@ -47,14 +58,22 @@ Map data © OpenStreetMap contributors, ODbL.
 
 ## Stations
 
-`data/stations.json` ships with **placeholders**. Fix them in the app:
+`data/stations.json` holds each station's address, its position, the street the bay opens onto, and which way the apparatus faces when it pulls out. "Left" in Turn Signal and Router means left from the driver's seat as the truck leaves the bay.
 
-1. Open **Station setup** (link at the bottom of the home page).
-2. Pick a station and tap the map where the apparatus pulls out.
-3. Choose the street the bay opens onto and the direction the trucks face, then tick "verified".
-4. Click **Export stations.json** and commit the file to `data/stations.json`.
+| Station | Address | Bay faces | Onto |
+| --- | --- | --- | --- |
+| 1 | 3948 W 73rd Ave | South | W 72nd Pl (OpenStreetMap's name for what crews call 72nd Way) |
+| 2 | 9150 Lowell Blvd | West | Lowell Blvd |
+| 3 | 7702 W 90th Ave | Northeast | W 90th Ave |
+| 4 | 4580 W 112th Ave | North | W 112th Ave |
+| 5 | 10100 Garland St | West | Garland St |
+| 6 | 999 W 124th Ave | South | W 124th Ave |
 
-Turn Signal and Router depend on the facing direction: "left" means left from the driver's seat as the truck leaves the bay.
+To adjust one, open **Station setup** (link at the bottom of the home page), tap the map, pick the street and facing, then **Export stations.json** and commit it.
+
+## Hospitals
+
+`data/landmarks.json` lists the hospitals used by Cardinal. Entries marked `"source": "approximate"` are outside the downloaded map area, and their coordinates were entered by hand: Lutheran, St. Anthony (West), Denver Health, University of Colorado Hospital and Children's Colorado. They're accurate to within a few blocks, which is plenty for an 8-point compass.
 
 ## Run it locally
 

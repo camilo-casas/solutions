@@ -9,6 +9,8 @@ import { turnSignal } from './games/turnSignal.js';
 import { cardinal } from './games/cardinal.js';
 import { router } from './games/router.js';
 import { setup } from './games/setup.js';
+import { splash, scores } from './games/players.js';
+import * as board from './scoreboard.js';
 
 const GAMES = [
   { id: 'flashcards', name: 'Rotations', icon: '🗂️', blurb: 'Flash cards for the street rotations, from Broadway (0) out to Alkire (13200).', view: flashcards },
@@ -27,6 +29,7 @@ async function loadContext() {
   const embedded = window.WFD_DATA;
   const city = embedded?.city || await get('data/city.json');
   const fileStations = embedded?.stations || await get('data/stations.json');
+  const landmarks = embedded?.landmarks || await get('data/landmarks.json').catch(() => []);
   const graph = new RoadGraph(city);
   const grid = makeGrid(city.meta.grid);
   const addresses = city.addresses.map(([num, ni, lat, lon, src]) => ({
@@ -34,7 +37,7 @@ async function loadContext() {
   }));
   const nodeCache = new Map();
   const ctx = {
-    city, graph, grid, addresses, fileStations,
+    city, graph, grid, addresses, fileStations, landmarks,
     demo: city.meta.source === 'demo',
     streetNames: [...new Set(graph.edges.map((e) => shortName(e.name)).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     get stations() {
@@ -46,12 +49,12 @@ async function loadContext() {
     randomAddress: () => pick(addresses),
     /** Graph node where an address sits. */
     addressNode(a) {
-      a.node ??= graph.nearestNode(a.p, a.street);
+      a.node ??= graph.snap(a.p, a.street);
       return a.node;
     },
     stationNode(s) {
       const k = `${s.lat},${s.lon},${s.street}`;
-      if (!nodeCache.has(k)) nodeCache.set(k, graph.nearestNode([s.lat, s.lon], s.street));
+      if (!nodeCache.has(k)) nodeCache.set(k, graph.snap([s.lat, s.lon], s.street));
       return nodeCache.get(k);
     },
   };
@@ -81,7 +84,16 @@ function home(root, ctx) {
         'The bold anchor streets come every 800 numbers, about half a mile.')),
     el('p', { class: 'foot' },
       el('a', { href: '#/setup' }, 'Station setup'), ' · ',
-      el('button', { class: 'link', onclick: () => { if (confirm('Reset all scores and flash card progress on this device?')) { store.resetAll(); route(); } } }, 'Reset progress'),
+      el('a', { href: '#/scores' }, 'Scoreboard'), ' · ',
+      el('button', {
+        class: 'link',
+        onclick: (e) => {
+          // Two-step confirm (dialogs are blocked inside artifacts).
+          if (e.target.dataset.armed) { store.resetMine(); board.announce(); route(); return; }
+          e.target.dataset.armed = '1';
+          e.target.textContent = `Click again to erase ${store.player()?.name ? `${store.player().name}'s` : 'anonymous'} progress`;
+        },
+      }, 'Reset my progress'),
       ' · ', ctx.city.meta.note || ''),
   );
 }
@@ -105,6 +117,15 @@ async function route() {
   }
   root.replaceChildren();
   const id = location.hash.replace(/^#\/?/, '').split('?')[0];
+  renderPlayerChip();
+  if (id === 'player' || (!store.player() && id !== 'setup')) {
+    document.getElementById('banner').replaceChildren();
+    splash(root, ctx, () => {
+      renderPlayerChip();
+      if (id === 'player') location.hash = '#/'; else route();
+    });
+    return;
+  }
   const banner = document.getElementById('banner');
   banner.replaceChildren();
   if (ctx.demo) banner.append(el('div', { class: 'banner warn' }, el('b', {}, 'Demo map. '), 'These roads are a simplified grid, not the real street network. Build real data with tools/build-data.mjs (see README).'));
@@ -115,9 +136,20 @@ async function route() {
   const game = GAMES.find((g) => g.id === id);
   if (game) current = game.view(root, ctx);
   else if (id === 'setup') current = setup(root, ctx);
+  else if (id === 'scores') current = scores(root, ctx);
   else home(root, ctx);
   window.scrollTo(0, 0);
 }
 
+function renderPlayerChip() {
+  const chip = document.getElementById('player-chip');
+  if (!chip) return;
+  const p = store.player();
+  chip.hidden = !p;
+  chip.textContent = p?.name ? `👤 ${p.name}` : '👤 Anonymous';
+  chip.title = 'Switch player';
+}
+
 window.addEventListener('hashchange', route);
+board.connect();
 route();

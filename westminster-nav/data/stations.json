@@ -1,62 +1,8 @@
 [
-  {
-    "id": 1,
-    "name": "Station 1",
-    "address": "PLACEHOLDER: set in Station setup",
-    "lat": 39.8283,
-    "lon": -105.03782,
-    "street": "W 72nd Ave",
-    "facing": "N",
-    "verified": false
-  },
-  {
-    "id": 2,
-    "name": "Station 2",
-    "address": "PLACEHOLDER: set in Station setup",
-    "lat": 39.86465,
-    "lon": -105.04667,
-    "street": "W 92nd Ave",
-    "facing": "S",
-    "verified": false
-  },
-  {
-    "id": 3,
-    "name": "Station 3",
-    "address": "PLACEHOLDER: set in Station setup",
-    "lat": 39.8428,
-    "lon": -105.06773,
-    "street": "W 80th Ave",
-    "facing": "N",
-    "verified": false
-  },
-  {
-    "id": 4,
-    "name": "Station 4",
-    "address": "PLACEHOLDER: set in Station setup",
-    "lat": 39.8864,
-    "lon": -105.09471,
-    "street": "W 104th Ave",
-    "facing": "S",
-    "verified": false
-  },
-  {
-    "id": 5,
-    "name": "Station 5",
-    "address": "PLACEHOLDER: set in Station setup",
-    "lat": 39.9153,
-    "lon": -105.01081,
-    "street": "W 120th Ave",
-    "facing": "N",
-    "verified": false
-  },
-  {
-    "id": 6,
-    "name": "Station 6",
-    "address": "PLACEHOLDER: set in Station setup",
-    "lat": 39.8574,
-    "lon": -105.11576,
-    "street": "W 88th Ave",
-    "facing": "N",
-    "verified": false
-  }
+  { "id": 1, "name": "Station 1", "address": "3948 W 73rd Ave", "lat": 39.82876, "lon": -105.03953, "street": "W 72nd Pl", "facing": "S", "verified": true },
+  { "id": 2, "name": "Station 2", "address": "9150 Lowell Blvd", "lat": 39.86231, "lon": -105.03401, "street": "Lowell Blvd", "facing": "W", "verified": true },
+  { "id": 3, "name": "Station 3", "address": "7702 W 90th Ave", "lat": 39.85942, "lon": -105.08375, "street": "W 90th Ave", "facing": "NE", "verified": true },
+  { "id": 4, "name": "Station 4", "address": "4580 W 112th Ave", "lat": 39.89936, "lon": -105.04483, "street": "W 112th Ave", "facing": "N", "verified": true },
+  { "id": 5, "name": "Station 5", "address": "10100 Garland St", "lat": 39.8796, "lon": -105.10237, "street": "Garland St", "facing": "W", "verified": true },
+  { "id": 6, "name": "Station 6", "address": "999 W 124th Ave", "lat": 39.9224, "lon": -104.99911, "street": "W 124th Ave", "facing": "S", "verified": true }
 ]

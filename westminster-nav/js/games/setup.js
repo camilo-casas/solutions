@@ -72,8 +72,13 @@ export function setup(root, ctx) {
         el('button', { class: 'btn primary', onclick: exportJson }, 'Export stations.json'),
         el('button', {
           class: 'btn',
-          onclick: () => {
-            if (!confirm('Discard changes on this device and go back to data/stations.json?')) return;
+          onclick: (e) => {
+            // Two-step confirm (dialogs are blocked inside artifacts).
+            if (!e.target.dataset.armed) {
+              e.target.dataset.armed = '1';
+              e.target.textContent = 'Click again to discard changes';
+              return;
+            }
             store.remove('stations');
             stations = ctx.fileStations.map((x) => ({ ...x }));
             render();

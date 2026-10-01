@@ -14,7 +14,7 @@ const MODES = [
 
 export function flashcards(root, ctx) {
   const prefs = store.load('fc:prefs', { mode: 'study', rotations: [1, 2, 3, 4], anchors: false });
-  let boxes = store.load('fc:boxes', {});
+  let boxes = store.loadMine('fc:boxes', {});
   let last = null;
 
   const pool = () => STREETS.filter((s) => prefs.rotations.includes(s.rotation) && (!prefs.anchors || s.major));
@@ -22,7 +22,7 @@ export function flashcards(root, ctx) {
   const setBox = (s, ok) => {
     const k = `${prefs.mode}:${s.block}`;
     boxes[k] = ok ? Math.min(5, (boxes[k] || 1) + 1) : 1;
-    store.save('fc:boxes', boxes);
+    store.saveMine('fc:boxes', boxes);
   };
   const nextCard = () => {
     const p = pool();

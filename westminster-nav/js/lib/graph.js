@@ -56,7 +56,9 @@ export class RoadGraph {
     this.city = city;
     const n = city.nodes.length / 2;
     this.n = n;
-    this.pt = (i) => [city.nodes[2 * i], city.nodes[2 * i + 1]];
+    this.base = n;
+    this.extra = []; // virtual nodes added by snap()
+    this.pt = (i) => (i < this.base ? [city.nodes[2 * i], city.nodes[2 * i + 1]] : this.extra[i - this.base]);
     this.edges = []; // {from, to, way, len, cost, name}
     this.out = Array.from({ length: n }, () => []);
     this.inc = Array.from({ length: n }, () => []);
@@ -78,25 +80,84 @@ export class RoadGraph {
   addEdge(from, to, way) {
     const len = distance(this.pt(from), this.pt(to));
     const id = this.edges.length;
-    this.edges.push({ id, from, to, way: way.id, name: way.name, len, cost: len / (SPEED[way.cls] || 10) });
+    way.key ??= nameKey(way.name);
+    way.base ??= baseKey(way.name);
+    this.edges.push({ id, from, to, way: way.id, name: way.name, key: way.key, base: way.base, len, cost: len / (SPEED[way.cls] || 10) });
     this.out[from].push(id);
     this.inc[to].push(id);
   }
 
   wayName(e) { return this.edges[e].name; }
 
-  /** Nearest routable node, optionally restricted to nodes on a street matching `street`. */
+  /** Edges on a street: exact name match first, then the looser base name. */
+  edgesOn(street) {
+    const live = this.edges.filter((e) => !e.dead);
+    if (!street) return live;
+    const k = nameKey(street);
+    const exact = live.filter((e) => e.key === k);
+    if (exact.length) return exact;
+    const b = baseKey(street);
+    return live.filter((e) => e.base === b);
+  }
+
+  /** Nearest routable node, optionally restricted to a street. */
   nearestNode(p, street = null) {
     let best = -1;
     let bestD = Infinity;
-    const key = street ? baseKey(street) : null;
-    for (const e of this.edges) {
-      if (key && baseKey(e.name) !== key) continue;
+    const pool = this.edgesOn(street);
+    for (const e of pool.length ? pool : this.edgesOn(null)) {
       const d = distance(p, this.pt(e.from));
       if (d < bestD) { bestD = d; best = e.from; }
     }
-    if (best < 0 && street) return this.nearestNode(p, null);
     return best;
+  }
+
+  /**
+   * Node at the closest point on a street to `p`. Splits the road there
+   * with a new node when the point is mid-block, so a station or address
+   * sits where it really is instead of at the nearest intersection.
+   */
+  snap(p, street = null) {
+    let pool = this.edgesOn(street);
+    if (!pool.length) pool = this.edgesOn(null);
+    const k = Math.cos((p[0] * Math.PI) / 180);
+    let best = null;
+    for (const e of pool) {
+      const a = this.pt(e.from);
+      const b = this.pt(e.to);
+      const bx = (b[1] - a[1]) * k;
+      const by = b[0] - a[0];
+      const px = (p[1] - a[1]) * k;
+      const py = p[0] - a[0];
+      const L2 = bx * bx + by * by || 1e-12;
+      const t = Math.max(0, Math.min(1, (px * bx + py * by) / L2));
+      const d = (px - t * bx) ** 2 + (py - t * by) ** 2;
+      if (!best || d < best.d) best = { e, t, d };
+    }
+    if (!best) return this.nearestNode(p);
+    const { e, t } = best;
+    const a = this.pt(e.from);
+    const b = this.pt(e.to);
+    const q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    if (distance(q, a) < 5) return e.from;
+    if (distance(q, b) < 5) return e.to;
+    const v = this.n++;
+    this.extra.push(q);
+    this.out.push([]);
+    this.inc.push([]);
+    const way = this.ways[e.way];
+    // Replace a->b (and b->a when two-way) with a->v->b.
+    const split = (old) => {
+      old.dead = true;
+      this.out[old.from] = this.out[old.from].filter((x) => x !== old.id);
+      this.inc[old.to] = this.inc[old.to].filter((x) => x !== old.id);
+      this.addEdge(old.from, v, way);
+      this.addEdge(v, old.to, way);
+    };
+    const rev = this.out[e.to].map((o) => this.edges[o]).find((o) => o.to === e.from && o.way === e.way);
+    split(e);
+    if (rev) split(rev);
+    return v;
   }
 
   /** Dijkstra toward `target`: cost-to-go from every node, plus the next edge to take. */
@@ -171,6 +232,28 @@ export class RoadGraph {
     return bearing(this.pt(e.from), end);
   }
 
+  /**
+   * Named roads you can turn onto from `node`: directly, or through a short
+   * chain of unnamed connectors (slip lanes, turn lanes). Skips going back to `back`.
+   */
+  exits(node, back) {
+    const res = [];
+    const seen = new Set([node]);
+    const queue = [{ n: node, via: [], len: 0 }];
+    while (queue.length) {
+      const { n, via, len } = queue.shift();
+      for (const o of this.out[n]) {
+        const oe = this.edges[o];
+        if (via.length === 0 && oe.to === back) continue;
+        if (oe.name) { res.push({ via, edge: o }); continue; }
+        if (seen.has(oe.to) || via.length >= 8 || len + oe.len > 400) continue;
+        seen.add(oe.to);
+        queue.push({ n: oe.to, via: [...via, o], len: len + oe.len });
+      }
+    }
+    return res;
+  }
+
   /** Straightest next edge on the same street after `eid` (no U-turns), or -1. */
   continuation(eid, matchName = null) {
     const e = this.edges[eid];
@@ -202,18 +285,23 @@ export class RoadGraph {
     const label = (e) => shortName(this.edges[e].name) || 'unnamed road';
     let cur = { name: label(path[0]), dist: 0, turn: null, at: path[0] };
     if (startHeading != null) cur.turn = turnOf(angleDiff(startHeading, this.headingOut(path[0])));
+    // Turns are measured from the last named road, so a turn made through an
+    // unnamed slip lane still reads as the left or right it really is.
+    let lastNamed = this.edges[path[0]].name ? 0 : -1;
     for (let i = 0; i < path.length; i++) {
       const e = this.edges[path[i]];
       const nm = label(path[i]);
       const unnamed = !e.name;
+      const ref = lastNamed >= 0 ? path[lastNamed] : path[Math.max(0, i - 1)];
       const rel = i > 0 ? angleDiff(this.headingIn(path[i - 1]), bearing(this.pt(e.from), this.pt(e.to))) : 0;
       if (i > 0 && !unnamed && (nameKey(nm) !== nameKey(cur.name) || turnOf(rel) === 'u-turn')) {
-        const turn = turnOf(nameKey(nm) === nameKey(cur.name) ? rel : angleDiff(this.headingIn(path[i - 1]), this.headingOut(path[i])));
+        const turn = turnOf(nameKey(nm) === nameKey(cur.name) ? rel : angleDiff(this.headingIn(ref), this.headingOut(path[i])));
         steps.push(cur);
         cur = { name: nm, dist: 0, turn, at: path[i] };
       } else if (cur.name === 'unnamed road' && !unnamed) {
         cur.name = nm;
       }
+      if (!unnamed) lastNamed = i;
       cur.dist += e.len;
     }
     steps.push(cur);
@@ -255,13 +343,12 @@ export class RoadGraph {
       for (;;) {
         const node = this.edges[cur].to;
         const hin = this.headingIn(cur);
-        for (const o of this.out[node]) {
+        for (const { via, edge: o } of this.exits(node, this.edges[cur].from)) {
           const oe = this.edges[o];
-          if (oe.to === this.edges[cur].from) continue;
           if (!streetMatches(street, oe.name)) continue;
           if (nameKey(oe.name) === nameKey(this.edges[cur].name) && turn !== 'straight') continue;
           const t = turnOf(angleDiff(hin, this.headingOut(o)));
-          if (t === turn) { found = o; break; }
+          if (t === turn) { found = o; path.push(...via); break; }
           if (t === 'left' || t === 'right') wrongSide = true;
         }
         if (found >= 0) break;
