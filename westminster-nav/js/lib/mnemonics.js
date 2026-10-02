@@ -90,9 +90,9 @@ export const HOOKS = {
   6300: 'K. A Ken doll (Kendall) in a treehouse of sticks: sticks 6, tree 3.',
   6400: 'L. Lamar sings "When I\'m 64."',
   6500: 'M. The marshal retires at 65.',
-  6600: 'N. New land on Route 66.',
+  6600: 'N. New land on Route 66. Heads up: Pierce jumps onto this 6600 line in some parts of town.',
   6700: 'O. An Otis elevator to floor 67.',
-  6800: 'P. Pierce pierces a sticks-and-gate fence: 6, 8. Anchor.',
+  6800: 'P. Pierce pierces a sticks-and-gate fence: 6, 8. Anchor. But in some areas Pierce cuts back two blocks to Route 66 (6600): picture the arrow piercing the Route 66 sign.',
   6900: 'Q. Quay is said "key": the key to room 69.',
   7000: 'R. Reed reads the 7:00 news.',
   7100: 'S. Saulsbury ("salt\'s bury"): salt water covers 71% of Earth.',
@@ -161,7 +161,7 @@ export const HOOKS = {
 };
 
 /** Tips for the major (bold) streets deck. */
-export const MAJOR_TIP = 'The bold anchors come every 800 (about half a mile): 0 · 800 · 1600 · 2400, then Federal at 3000, then 3600 · 4400 · 5200 · 6000 · 6800 · 7600 · 8400 · 9200 · 10000 · 10800 · 11600 · 12400 · 13200. Federal is the one exception.';
+export const MAJOR_TIP = 'The bold anchors come every 800 (about half a mile): 0 · 800 · 1600 · 2400, then Federal at 3000, then 3600 · 4400 · 5200 · 6000 · 6800 · 7600 · 8400 · 9200 · 10000 · 10800 · 11600 · 12400 · 13200. Federal is the one exception. Pierce (6800) also runs on the 6600 line in some areas.';
 
 const LETTER = (name) => name[0].toUpperCase().charCodeAt(0) - 64;
 
@@ -202,3 +202,11 @@ export function rule(s) {
 }
 
 export const hook = (s) => HOOKS[s.block] || '';
+
+/** Extra note for streets that sit on more than one block line. */
+export function alsoNote(s) {
+  if (s.also?.length) return `${s.name} is ${s.block} on the sheet, but also runs on the ${s.also.join(' and ')} line in some parts of the city.`;
+  const sharers = STREETS.filter((x) => x.also?.includes(s.block));
+  if (sharers.length) return `${sharers.map((x) => x.name).join(' and ')} also runs on the ${s.block} line in some areas, so ${s.block} can be ${[s.name, ...sharers.map((x) => x.name)].join(' or ')}.`;
+  return '';
+}

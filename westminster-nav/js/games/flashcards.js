@@ -1,9 +1,9 @@
 // Rotation flash cards: guided Learn mode (chunked encoding + immediate
 // retrieval quiz), then free practice with Leitner-box spaced repetition.
 
-import { ROTATIONS, STREETS, bracketWest } from '../lib/rotations.js';
+import { ROTATIONS, STREETS, bracketWest, conflicts } from '../lib/rotations.js';
 import { ordinal } from '../lib/names.js';
-import { rule, hook, MAJOR_TIP, PEGS } from '../lib/mnemonics.js';
+import { rule, hook, alsoNote, MAJOR_TIP, PEGS } from '../lib/mnemonics.js';
 import { el, shuffle, onKeys, scoreBar } from '../ui.js';
 import * as store from '../store.js';
 
@@ -92,6 +92,7 @@ export function flashcards(root, ctx) {
     return el('div', { class: 'memory' },
       el('div', { class: 'hook' }, el('span', { class: 'mem-label' }, 'Memory hook'), hook(s)),
       el('div', { class: 'rule' }, el('span', { class: 'mem-label' }, 'Letter math'), rule(s)),
+      alsoNote(s) ? el('div', { class: 'also' }, el('span', { class: 'mem-label' }, 'Heads up'), alsoNote(s)) : null,
       ladder ? el('div', { class: 'ladder' },
         prev ? el('span', {}, `${prev.block} ${prev.name}`) : null,
         el('span', { class: 'here' }, `${s.block} ${s.name}${s.alias ? ` (${s.alias})` : ''}`),
@@ -123,7 +124,8 @@ export function flashcards(root, ctx) {
   /** Distractors: nearby streets from the same deck, so major-deck answers stay major. */
   function nearby(s, count, within = pool()) {
     const src = within.length > count ? within : STREETS;
-    const p = src.filter((x) => x !== s).sort((a, b) => Math.abs(a.block - s.block) - Math.abs(b.block - s.block));
+    // Never offer a second right answer (Pierce can also be 6600).
+    const p = src.filter((x) => x !== s && !conflicts(s, x)).sort((a, b) => Math.abs(a.block - s.block) - Math.abs(b.block - s.block));
     return shuffle(p.slice(0, count + 2)).slice(0, count);
   }
 
@@ -185,6 +187,7 @@ export function flashcards(root, ctx) {
           s.major ? el('span', { class: 'badge-major' }, 'Major street') : null,
           el('div', { class: 'face-big' }, s.name, s.alias ? el('span', { class: 'alias' }, ` (${s.alias})`) : null),
           el('div', { class: 'face-block' }, s.block),
+          s.also.length ? el('div', { class: 'face-also' }, `also ${s.also.join(', ')} in places`) : null,
           memory(s, { ladder: false })),
         el('div', { class: 'row end' },
           i > 0 ? el('button', { class: 'btn', onclick: () => encode(i - 1) }, '‹ Back') : null,
@@ -258,7 +261,7 @@ export function flashcards(root, ctx) {
       const show = () => {
         card.replaceChildren(
           el('div', { class: 'face-big' }, front ? s.name : s.block),
-          el('div', { class: 'face-sub' }, flipped ? (front ? `${s.block} W` : s.name + (s.alias ? ` (${s.alias})` : '')) : 'tap to flip'),
+          el('div', { class: 'face-sub' }, flipped ? (front ? `${s.block} W${s.also.length ? ` (also ${s.also.join(', ')} in places)` : ''}` : s.name + (s.alias ? ` (${s.alias})` : '')) : 'tap to flip'),
           flipped ? memory(s) : null);
         card.classList.toggle('flipped', flipped);
       };

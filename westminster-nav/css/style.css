@@ -359,3 +359,5 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .memory .ladder { justify-content: flex-start; font-size: 14px; color: var(--muted); }
 .row.end { justify-content: flex-end; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.memory .also { padding: 10px 12px; border-radius: 8px; font-size: 15px; line-height: 1.45; background: var(--surface); border: 1px dashed var(--maroon); color: var(--text); }
+.face-also { font: 600 15px var(--font-body); color: var(--maroon); text-transform: uppercase; letter-spacing: 0.06em; }

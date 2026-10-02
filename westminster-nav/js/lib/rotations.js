@@ -70,12 +70,22 @@ export const ROTATIONS = [
   },
 ];
 
-// Flat list: { block, name, major, alias, rotation }
+// Streets that also run on a second block line in parts of the city.
+// Pierce is 6800 on the sheet but sits on the 6600 line (Newland's) in some areas.
+export const ALSO_AT = { Pierce: [6600] };
+
+// Flat list: { block, name, major, alias, rotation, also }
 export const STREETS = ROTATIONS.flatMap((r) =>
   r.streets.map(([block, name, major = false, alias = null]) => ({
-    block, name, major: !!major, alias, rotation: r.id,
+    block, name, major: !!major, alias, rotation: r.id, also: ALSO_AT[name] || [],
   })),
 );
+
+/** Other streets that can also sit on this street's block (6600 -> Pierce). */
+export const sharesBlock = (s) => STREETS.filter((x) => x !== s && x.also.includes(s.block));
+
+/** True when a and b could both be right for the same block, so neither may be a distractor for the other. */
+export const conflicts = (a, b) => a.also.includes(b.block) || b.also.includes(a.block);
 
 const byName = new Map();
 for (const s of STREETS) {
