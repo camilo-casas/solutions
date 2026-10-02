@@ -8,7 +8,7 @@ It's a static site: plain HTML, CSS and JavaScript modules, with no framework or
 
 | Game | What you do | How it's graded |
 | --- | --- | --- |
-| **Rotations** (flash cards) | Study mode, Name → Block, Block → Name, and Address → Cross streets (`5850 W 94th Ave` → Fenton & Gray). Filter by rotation or anchor streets only. | Leitner spaced repetition: cards you miss come back more often. |
+| **Rotations** (flash cards) | Pick a deck: **Major streets** (the 18 bold anchors: Broadway, Huron, Pecos, Zuni, Federal, Lowell, Tennyson, Sheridan, Harlan, Pierce, Wadsworth, Carr, Garrison, Kipling, Oak, Simms, Welch, Alkire) or **All streets** (132, filterable by rotation). Modes: **Learn** (guided), Study, Name → Block, Block → Name, and Address → Cross streets (`5850 W 94th Ave` → Fenton & Gray). | Learn: 6 cards at a time, then a quiz you must pass (5 of 6) to unlock the next set. Practice modes use Leitner spaced repetition: cards you miss come back more often. |
 | **Turn Signal** | You get a station and an address. Pick **left** or **right** out of the bay. | The shortest drive-time route is computed both ways. If they're within 5%, either answer counts. |
 | **Cardinal** | You get an address and one of the key hospitals (`data/landmarks.json`) or a WFD station. Pick N, NE, E, SE, S, SW, W or NW. "Everything on the map" adds other landmarks. | Straight-line bearing. A neighboring direction gets half credit. |
 | **Router** | Give turn-by-turn directions: left or right out of the bay, then "Right onto Sheridan Blvd", "Left onto W 92nd Ave", and so on. | The app drives your directions on the real street network and compares the result to the fastest route. |
@@ -16,6 +16,19 @@ It's a static site: plain HTML, CSS and JavaScript modules, with no framework or
 Turn Signal picks addresses so left and right come up about equally often, even at stations where most calls go one way.
 
 Every answer shows a map with the correct route and explains the grid math (for example, "about 4350 W, between Stuart (4300) and Tennyson (4400)").
+
+## How the memory aids work
+
+Every street has two aids, shown on every card back and on every wrong answer (`js/lib/mnemonics.js`):
+
+- **Letter math**, generated from the sheet. In rotations 1 to 3, block = rotation start + letter position × 100. For example, Lowell: L is the 12th letter and rotation 2 starts after Zuni (2400), so 2400 + 1200 = 3600. Rotation 4 has two names per letter (K pair = Kipling 10000, Kline 10100). The exceptions are explained on the card: skipped letters (no X or Y in rotation 1), doubled letters (Winona/Wolff, Webster/Wadsworth), the boundary streets (Sheridan, Alkire) and the missing 12900.
+- **Memory hook**, a vivid image tying the name's sound to its number, either through a familiar number (Eaton 5700 has eaten all the Heinz 57; Newland 6600 is new land on Route 66) or through rhyming number pegs (0 hero, 1 bun, 2 shoe, 3 tree, 4 door, 5 hive, 6 sticks, 7 heaven, 8 gate, 9 vine).
+
+Learn mode follows the evidence on memory: encode a small chunk with elaborate, vivid cues; test yourself on it right away (retrieval practice); then come back in spaced sessions. Edit any hook in `HOOKS` if your crew has a better one.
+
+## Look
+
+The colors come from the WFD patch (black, fire-engine red, gold, maroon). The logo itself is not used. Red marks actions and routes; gold marks selection and highlights. Type is Barlow, modeled on highway signage.
 
 ## Players and the scoreboard
 
@@ -31,6 +44,7 @@ index.html            app shell
 css/style.css         styles (light and dark)
 js/app.js             data loading and page routing
 js/lib/rotations.js   the rotation sheet (Broadway 0 → Alkire 13200)
+js/lib/mnemonics.js   memory hooks and letter-math rules for every street
 js/lib/grid.js        house number <-> coordinates (Denver grid)
 js/lib/graph.js       road graph, fastest routes, turn-by-turn, Router simulator
 js/map.js             canvas map (no tiles, so street names stay hidden until you ask)

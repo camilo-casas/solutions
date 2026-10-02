@@ -4,6 +4,8 @@ import { el } from '../ui.js';
 import * as store from '../store.js';
 import * as board from '../scoreboard.js';
 
+const COMPASS = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" fill="none" stroke="#f2b705" stroke-width="4"/><path d="M32 8 L39 32 L32 56 L25 32 Z" fill="#c1121f"/><path d="M32 8 L39 32 L25 32 Z" fill="#f2b705"/><circle cx="32" cy="32" r="3.5" fill="#0d0b0a" stroke="#f2b705" stroke-width="2"/></svg>';
+
 const GAME_TABS = [
   { id: 'all', label: 'Overall' },
   { id: 'flashcards', label: 'Rotations' },
@@ -39,7 +41,7 @@ export function splash(root, ctx, done) {
   err);
 
   root.append(el('section', { class: 'splash' },
-    el('div', { class: 'splash-mark', 'aria-hidden': 'true' }, '🚒'),
+    el('div', { class: 'splash-mark', 'aria-hidden': 'true', html: COMPASS }),
     el('h1', {}, 'WFD Nav Trainer'),
     el('p', { class: 'lede' }, 'Street rotations, turn-outs, directions and routes for Westminster Fire. Pick a name to keep score and get on the scoreboard, or play anonymously.'),
     form,
@@ -59,7 +61,7 @@ export function scores(root) {
   const tabs = el('div', { class: 'tabs', role: 'tablist' });
   const note = el('p', { class: 'muted small' });
   const body = el('div', { class: 'board' });
-  root.append(el('h1', { class: 'game-title' }, '🏆 Scoreboard'), tabs, note, body);
+  root.append(el('h1', { class: 'game-title' }, 'Scoreboard'), tabs, note, body);
 
   let rows = [];
   let mode = 'local';

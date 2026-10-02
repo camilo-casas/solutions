@@ -13,7 +13,7 @@ import { splash, scores } from './games/players.js';
 import * as board from './scoreboard.js';
 
 const GAMES = [
-  { id: 'flashcards', name: 'Rotations', icon: '🗂️', blurb: 'Flash cards for the street rotations, from Broadway (0) out to Alkire (13200).', view: flashcards },
+  { id: 'flashcards', name: 'Rotations', icon: '🗂️', blurb: 'Learn the 18 major streets, then all 132, with a memory hook for every street and number.', view: flashcards },
   { id: 'turn', name: 'Turn Signal', icon: '↔️', blurb: 'Station plus an address: do you turn left or right out of the bay?', view: turnSignal },
   { id: 'cardinal', name: 'Cardinal', icon: '🧭', blurb: 'From an address, which way is the hospital, station or landmark?', view: cardinal },
   { id: 'router', name: 'Router', icon: '🚒', blurb: 'Give turn-by-turn directions from the station. We drive them and grade the route.', view: router },

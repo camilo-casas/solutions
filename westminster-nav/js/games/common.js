@@ -5,7 +5,7 @@ import { describeWest, describeNorth } from '../lib/grid.js';
 import { el, pick, fmtTime } from '../ui.js';
 import * as store from '../store.js';
 
-export const COLORS = { best: '#d7263d', alt: '#8a94a6', user: '#f39c12', station: '#d7263d', dest: '#1f6feb', poi: '#2a9d8f' };
+export const COLORS = { best: '#c1121f', alt: '#8a8178', user: '#e0a400', station: '#c1121f', dest: '#1f6feb', poi: '#7d1128' };
 
 export const facingName = (deg) => CARDINAL_NAMES[toCardinal(deg)];
 

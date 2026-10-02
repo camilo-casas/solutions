@@ -17,7 +17,7 @@ export function router(root, ctx) {
   const mapBox = el('div', { class: 'reveal hidden' }, mapEl);
   const listId = `streets-${++listSeq}`;
   const datalist = el('datalist', { id: listId }, ctx.streetNames.map((n) => el('option', { value: n })));
-  root.append(el('h1', { class: 'game-title' }, '🚒 Router'), head, stage, mapBox, datalist);
+  root.append(el('h1', { class: 'game-title' }, 'Router'), head, stage, mapBox, datalist);
 
   const renderHead = () => head.replaceChildren(
     el('div', { class: 'row' }, picker.el,

@@ -1,26 +1,40 @@
-// Rotation flash cards with simple Leitner-box spaced repetition.
+// Rotation flash cards: guided Learn mode (chunked encoding + immediate
+// retrieval quiz), then free practice with Leitner-box spaced repetition.
 
 import { ROTATIONS, STREETS, bracketWest } from '../lib/rotations.js';
 import { ordinal } from '../lib/names.js';
+import { rule, hook, MAJOR_TIP, PEGS } from '../lib/mnemonics.js';
 import { el, shuffle, onKeys, scoreBar } from '../ui.js';
 import * as store from '../store.js';
 
 const MODES = [
+  { id: 'learn', label: 'Learn', hint: 'Learn 6 streets at a time with memory hooks, then quiz on them.' },
   { id: 'study', label: 'Study', hint: 'Flip the card, then grade yourself.' },
   { id: 'name2block', label: 'Name → Block', hint: 'What hundred block is this street?' },
   { id: 'block2name', label: 'Block → Name', hint: 'Which street sits on this block?' },
   { id: 'decode', label: 'Address → Cross streets', hint: 'Which two streets is this avenue address between?' },
 ];
+const DECKS = [
+  { id: 'major', label: 'Major streets', title: 'The 18 bold anchor streets' },
+  { id: 'all', label: 'All streets', title: 'Every street on the rotation sheet' },
+];
+const CHUNK = 6;
 
 export function flashcards(root, ctx) {
-  const prefs = store.load('fc:prefs', { mode: 'study', rotations: [1, 2, 3, 4], anchors: false });
+  const prefs = { mode: 'learn', deck: 'major', rotations: [1, 2, 3, 4], ...store.load('fc:prefs', {}) };
+  if (!MODES.some((m) => m.id === prefs.mode)) prefs.mode = 'learn';
+  const savePrefs = () => store.save('fc:prefs', prefs);
   let boxes = store.loadMine('fc:boxes', {});
   let last = null;
 
-  const pool = () => STREETS.filter((s) => prefs.rotations.includes(s.rotation) && (!prefs.anchors || s.major));
-  const boxOf = (s) => boxes[`${prefs.mode}:${s.block}`] || 1;
-  const setBox = (s, ok) => {
-    const k = `${prefs.mode}:${s.block}`;
+  const pool = () => (prefs.deck === 'major'
+    ? STREETS.filter((s) => s.major)
+    : STREETS.filter((s) => prefs.rotations.includes(s.rotation)));
+  const deckKey = () => (prefs.deck === 'major' ? 'major' : `all-${prefs.rotations.join('')}`);
+  const boxKey = (s, mode = prefs.mode) => `${mode === 'learn' ? 'name2block' : mode}:${s.block}`;
+  const boxOf = (s) => boxes[boxKey(s)] || 1;
+  const setBox = (s, ok, mode) => {
+    const k = boxKey(s, mode);
     boxes[k] = ok ? Math.min(5, (boxes[k] || 1) + 1) : 1;
     store.saveMine('fc:boxes', boxes);
   };
@@ -35,59 +49,59 @@ export function flashcards(root, ctx) {
 
   const head = el('div', { class: 'game-head' });
   const stage = el('div', { class: 'stage' });
-  root.append(el('h1', { class: 'game-title' }, '🗂️ Rotations'), head, stage);
+  root.append(el('h1', { class: 'game-title' }, 'Rotations'), head, stage);
+
+  const restart = () => { savePrefs(); renderHead(); ask(); };
 
   function renderHead() {
     const p = pool();
     const mastered = p.filter((s) => boxOf(s) >= 4).length;
-    head.replaceChildren(
-      el('div', { class: 'tabs', role: 'tablist' }, MODES.map((m) => el('button', {
-        class: m.id === prefs.mode ? 'tab on' : 'tab', role: 'tab', 'aria-selected': String(m.id === prefs.mode),
-        onclick: () => { prefs.mode = m.id; store.save('fc:prefs', prefs); renderHead(); ask(); },
-      }, m.label))),
-      el('div', { class: 'chips' },
+    head.replaceChildren(...[
+      el('div', { class: 'deck-row' },
+        el('span', { class: 'deck-label' }, 'Deck'),
+        el('div', { class: 'segs' }, DECKS.map((d) => el('button', {
+          type: 'button', class: d.id === prefs.deck ? 'seg on' : 'seg', title: d.title,
+          onclick: () => { prefs.deck = d.id; restart(); },
+        }, `${d.label} (${d.id === 'major' ? STREETS.filter((s) => s.major).length : STREETS.length})`)))),
+      prefs.deck === 'all' ? el('div', { class: 'chips' },
         ROTATIONS.map((r) => el('button', {
           class: prefs.rotations.includes(r.id) ? 'chip on' : 'chip', title: r.theme,
           onclick: () => {
             const on = prefs.rotations.includes(r.id);
             if (on && prefs.rotations.length === 1) return;
             prefs.rotations = on ? prefs.rotations.filter((x) => x !== r.id) : [...prefs.rotations, r.id].sort();
-            store.save('fc:prefs', prefs); renderHead(); ask();
+            restart();
           },
-        }, `${r.streets[0][1]}–${r.streets[r.streets.length - 1][1]}`)),
-        el('button', {
-          class: prefs.anchors ? 'chip on' : 'chip', title: 'Only the bold anchor streets (every 800)',
-          onclick: () => { prefs.anchors = !prefs.anchors; store.save('fc:prefs', prefs); renderHead(); ask(); },
-        }, 'Anchors only')),
+        }, `${r.streets[0][1]}–${r.streets[r.streets.length - 1][1]}`))) : null,
+      el('div', { class: 'tabs', role: 'tablist' }, MODES.map((m) => el('button', {
+        class: m.id === prefs.mode ? 'tab on' : 'tab', role: 'tab', 'aria-selected': String(m.id === prefs.mode),
+        onclick: () => { prefs.mode = m.id; restart(); },
+      }, m.label))),
       el('div', { class: 'progress' },
         el('div', { class: 'progress-bar' }, el('span', { style: `width:${p.length ? (100 * mastered) / p.length : 0}%` })),
-        el('small', {}, `${mastered} of ${p.length} cards mastered in this mode · ${MODES.find((m) => m.id === prefs.mode).hint}`)),
+        el('small', {}, `${mastered} of ${p.length} cards mastered${prefs.mode === 'learn' ? ' (Name → Block)' : ' in this mode'} · ${MODES.find((m) => m.id === prefs.mode).hint}`)),
       prefs.mode === 'study' ? null : scoreBar(store.stats('flashcards')),
-    );
+    ].filter(Boolean));
   }
 
-  function context(s) {
+  /** Rule + hook + neighbors, shown on every card back and answer. */
+  function memory(s, { ladder = true } = {}) {
     const i = STREETS.indexOf(s);
     const prev = STREETS[i - 1];
     const next = STREETS[i + 1];
-    const rot = ROTATIONS.find((r) => r.id === s.rotation);
-    const anchor = [...STREETS].filter((x) => x.major).sort((a, b) => Math.abs(a.block - s.block) - Math.abs(b.block - s.block))[0];
-    return el('div', { class: 'card-context' },
-      el('div', { class: 'ladder' },
+    return el('div', { class: 'memory' },
+      el('div', { class: 'hook' }, el('span', { class: 'mem-label' }, 'Memory hook'), hook(s)),
+      el('div', { class: 'rule' }, el('span', { class: 'mem-label' }, 'Letter math'), rule(s)),
+      ladder ? el('div', { class: 'ladder' },
         prev ? el('span', {}, `${prev.block} ${prev.name}`) : null,
         el('span', { class: 'here' }, `${s.block} ${s.name}${s.alias ? ` (${s.alias})` : ''}`),
-        next ? el('span', {}, `${next.block} ${next.name}`) : null),
-      el('small', {}, `${rot.title}. ${rot.theme}.`,
-        anchor && anchor !== s ? ` Nearest anchor: ${anchor.name} (${anchor.block}).` : ' This is an anchor street.'));
+        next ? el('span', {}, `${next.block} ${next.name}`) : null) : null);
   }
 
-  function choiceButtons(options, correctIdx, onDone) {
+  function choiceButtons(options, correctIdx, onDone, onNext = ask) {
     const t0 = performance.now();
     let done = false;
-    const btns = options.map((o, i) => el('button', {
-      class: 'choice',
-      onclick: () => answer(i),
-    }, el('kbd', {}, i + 1), o));
+    const btns = options.map((o, i) => el('button', { class: 'choice', onclick: () => answer(i) }, el('kbd', {}, i + 1), o));
     function answer(i) {
       if (done) return;
       done = true;
@@ -100,32 +114,140 @@ export function flashcards(root, ctx) {
     }
     onKeys((e) => {
       const n = Number(e.key);
-      if (n >= 1 && n <= options.length) answer(n - 1);
-      else if ((e.key === 'Enter' || e.key === ' ') && done) { e.preventDefault(); ask(); }
+      if (!done && n >= 1 && n <= options.length) answer(n - 1);
+      else if ((e.key === 'Enter' || e.key === ' ') && done) { e.preventDefault(); onNext(); }
     });
     return el('div', { class: 'choices' }, btns);
   }
 
-  function nearby(s, count, valid = () => true) {
-    const p = STREETS.filter((x) => x !== s && valid(x)).sort((a, b) => Math.abs(a.block - s.block) - Math.abs(b.block - s.block));
-    return shuffle(p.slice(0, count + 3)).slice(0, count);
+  /** Distractors: nearby streets from the same deck, so major-deck answers stay major. */
+  function nearby(s, count, within = pool()) {
+    const src = within.length > count ? within : STREETS;
+    const p = src.filter((x) => x !== s).sort((a, b) => Math.abs(a.block - s.block) - Math.abs(b.block - s.block));
+    return shuffle(p.slice(0, count + 2)).slice(0, count);
+  }
+
+  function score(ok, ms, s, mode) {
+    const points = ok ? 10 + Math.max(0, Math.round(5 - ms / 1000)) : 0;
+    store.record('flashcards', ok ? 1 : 0, points, ms);
+    setBox(s, ok, mode);
+    renderHead();
+    return points;
   }
 
   function result(ok, ms, s, extra) {
-    const points = ok ? 10 + Math.max(0, Math.round(5 - ms / 1000)) : 0;
-    store.record('flashcards', ok ? 1 : 0, points, ms);
-    setBox(s, ok);
-    renderHead();
+    const points = score(ok, ms, s);
     return el('div', { class: `verdict ${ok ? 'good' : 'bad'}` },
-      el('b', {}, ok ? `Correct (+${points})` : 'Not quite'),
+      el('b', {}, ok ? `Correct (+${points})` : `It's ${s.name} · ${s.block}`),
       extra || null,
-      context(s),
+      memory(s),
       el('button', { class: 'btn primary', onclick: ask }, 'Next card ↵'));
   }
 
+  // ---- Learn mode ---------------------------------------------------------
+  function learn() {
+    const deck = [...pool()].sort((a, b) => a.block - b.block);
+    const chunks = [];
+    for (let i = 0; i < deck.length; i += CHUNK) chunks.push(deck.slice(i, i + CHUNK));
+    const state = store.loadMine(`fc:learn:${deckKey()}`, { chunk: 0, passed: [] });
+    state.chunk = Math.min(state.chunk, chunks.length - 1);
+    const saveState = () => store.saveMine(`fc:learn:${deckKey()}`, state);
+
+    const method = el('details', { class: 'panel method', open: !state.passed.length },
+      el('summary', {}, 'How Learn mode works'),
+      el('ol', {},
+        el('li', {}, el('b', {}, 'Read each card out loud'), ' and picture the memory hook for a few seconds. Vivid, silly images stick best.'),
+        el('li', {}, el('b', {}, 'Use the letter math. '), 'In rotations 1 to 3, block = rotation start + letter position × 100. Rotation 4 has two names per letter.'),
+        el('li', {}, el('b', {}, 'Quiz right away. '), 'After 6 cards you\'re tested on them. Pulling an answer from memory builds it far faster than re-reading.'),
+        el('li', {}, el('b', {}, 'Come back tomorrow. '), 'Name → Block practice brings back the cards you miss more often (spaced repetition).')),
+      prefs.deck === 'major' ? el('p', { class: 'tip' }, MAJOR_TIP) : null,
+      el('p', { class: 'muted small' }, 'Number pegs used in some hooks: ', PEGS.map((p, i) => `${i} = ${p}`).join(', '), '.'));
+
+    const chunkChips = el('div', { class: 'chips chunk-chips' });
+    const renderChips = () => chunkChips.replaceChildren(...chunks.map((c, i) => el('button', {
+      class: `chip${i === state.chunk ? ' on' : ''}${state.passed.includes(i) ? ' done' : ''}`,
+      title: `${c[0].name} – ${c[c.length - 1].name}`,
+      onclick: () => { state.chunk = i; saveState(); learn(); },
+    }, `${state.passed.includes(i) ? '✓ ' : ''}${c[0].name}–${c[c.length - 1].name}`)));
+    renderChips();
+
+    const body = el('div', { class: 'learn-body' });
+    stage.replaceChildren(method, chunkChips, body);
+    const chunk = chunks[state.chunk];
+    encode(0);
+
+    function encode(i) {
+      const s = chunk[i];
+      const next = () => (i + 1 < chunk.length ? encode(i + 1) : quiz());
+      body.replaceChildren(
+        el('div', { class: 'learn-step' }, `Set ${state.chunk + 1} of ${chunks.length} · card ${i + 1} of ${chunk.length}`),
+        el('div', { class: `flashcard learn${s.major ? ' major' : ''}` },
+          s.major ? el('span', { class: 'badge-major' }, 'Major street') : null,
+          el('div', { class: 'face-big' }, s.name, s.alias ? el('span', { class: 'alias' }, ` (${s.alias})`) : null),
+          el('div', { class: 'face-block' }, s.block),
+          memory(s, { ladder: false })),
+        el('div', { class: 'row end' },
+          i > 0 ? el('button', { class: 'btn', onclick: () => encode(i - 1) }, '‹ Back') : null,
+          el('button', { class: 'btn primary', onclick: next }, i + 1 < chunk.length ? 'Next card ↵' : 'Quiz me on these ↵')));
+      onKeys((e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); next(); }
+        if (e.key === 'ArrowLeft' && i > 0) encode(i - 1);
+      });
+    }
+
+    function quiz() {
+      const order = shuffle(chunk);
+      let right = 0;
+      const ask1 = (k) => {
+        if (k >= order.length) return finish();
+        const s = order[k];
+        const opts = shuffle([s, ...nearby(s, 3, chunk.length >= 4 ? chunk : pool())]);
+        const fb = el('div');
+        body.replaceChildren(
+          el('div', { class: 'learn-step' }, `Quiz · ${k + 1} of ${order.length}`),
+          el('div', { class: 'prompt' }, el('div', { class: 'face-big' }, s.name), el('div', { class: 'face-sub' }, 'What block is it?')),
+          choiceButtons(opts.map((o) => `${o.block}`), opts.indexOf(s), (ok, ms) => {
+            if (ok) right++;
+            const pts = score(ok, ms, s, 'name2block');
+            fb.replaceChildren(el('div', { class: `verdict ${ok ? 'good' : 'bad'}` },
+              el('b', {}, ok ? `Correct (+${pts})` : `${s.name} is ${s.block}`),
+              ok ? null : memory(s, { ladder: false }),
+              el('button', { class: 'btn primary', onclick: () => ask1(k + 1) }, 'Next ↵')));
+          }, () => ask1(k + 1)),
+          fb);
+      };
+      const finish = () => {
+        const pass = right >= order.length - 1;
+        if (pass && !state.passed.includes(state.chunk)) state.passed.push(state.chunk);
+        const nextChunk = chunks.findIndex((_, i) => !state.passed.includes(i));
+        saveState();
+        const go = () => { state.chunk = nextChunk >= 0 ? nextChunk : state.chunk; saveState(); learn(); };
+        body.replaceChildren(el('div', { class: `verdict ${pass ? 'good' : 'meh'}` },
+          el('b', {}, `${right} of ${order.length} correct`),
+          el('p', {}, pass
+            ? (nextChunk >= 0 ? 'Set learned. On to the next one.' : 'Every set in this deck is learned. Switch to Name → Block for mixed review, and come back tomorrow.')
+            : 'Almost. Run through these cards once more, then retry the quiz.'),
+          el('div', { class: 'row' },
+            el('button', { class: 'btn', onclick: () => encode(0) }, 'Review these cards'),
+            pass && nextChunk >= 0 ? el('button', { class: 'btn primary', onclick: go }, 'Next set ↵') : null,
+            pass && nextChunk < 0 ? el('button', { class: 'btn primary', onclick: () => { prefs.mode = 'name2block'; restart(); } }, 'Mixed review ↵') : null,
+            pass ? null : el('button', { class: 'btn primary', onclick: quiz }, 'Retry quiz ↵'))));
+        onKeys((e) => {
+          if (e.key !== 'Enter') return;
+          if (!pass) quiz();
+          else if (nextChunk >= 0) go();
+          else { prefs.mode = 'name2block'; restart(); }
+        });
+        renderChips();
+      };
+      ask1(0);
+    }
+  }
+
   function ask() {
-    const s = nextCard();
     stage.replaceChildren();
+    if (prefs.mode === 'learn') { learn(); return; }
+    const s = nextCard();
     if (prefs.mode === 'study') {
       let flipped = false;
       const card = el('button', { class: 'flashcard', 'aria-live': 'polite' });
@@ -137,7 +259,7 @@ export function flashcards(root, ctx) {
         card.replaceChildren(
           el('div', { class: 'face-big' }, front ? s.name : s.block),
           el('div', { class: 'face-sub' }, flipped ? (front ? `${s.block} W` : s.name + (s.alias ? ` (${s.alias})` : '')) : 'tap to flip'),
-          flipped ? context(s) : null);
+          flipped ? memory(s) : null);
         card.classList.toggle('flipped', flipped);
       };
       card.onclick = () => { flipped = !flipped; show(); grade.classList.toggle('hidden', !flipped); };
@@ -164,9 +286,9 @@ export function flashcards(root, ctx) {
     }
 
     // decode: "3650 W 88th Ave"
-    if (!STREETS[STREETS.indexOf(s) + 1]) { ask(); return; }
     const nextS = STREETS[STREETS.indexOf(s) + 1];
-    const span = nextS ? nextS.block - s.block : 100;
+    if (!nextS) { ask(); return; }
+    const span = nextS.block - s.block;
     const num = s.block + 2 * Math.floor((Math.random() * (span - 2)) / 2) + 2;
     const ave = 70 + Math.floor(Math.random() * 80);
     const pair = (x) => {
@@ -182,7 +304,7 @@ export function flashcards(root, ctx) {
         el('div', { class: 'face-big addr' }, `${num} W ${ordinal(ave)} Ave`),
         el('div', { class: 'face-sub' }, 'Between which two cross streets?')),
       choiceButtons(opts, opts.indexOf(correct), (ok, ms) => stage.append(result(ok, ms, s,
-        el('p', {}, `${num} sits between ${correct.replace(' & ', ` (${s.block}) and `)}${nextS ? ` (${nextS.block})` : ''}.`)))),
+        el('p', {}, `${num} sits between ${s.name} (${s.block}) and ${nextS.name} (${nextS.block}).`)))),
     );
   }
 

@@ -46,7 +46,7 @@ export function cardinal(root, ctx) {
   const stage = el('div', { class: 'stage' });
   const { el: mapEl, map } = mapPanel(ctx, { labels: false });
   const mapBox = el('div', { class: 'reveal hidden' }, mapEl);
-  root.append(el('h1', { class: 'game-title' }, '🧭 Cardinal'), head, stage, mapBox);
+  root.append(el('h1', { class: 'game-title' }, 'Cardinal'), head, stage, mapBox);
 
   const renderHead = () => head.replaceChildren(
     el('div', { class: 'chips' }, KINDS.map((k) => el('button', {

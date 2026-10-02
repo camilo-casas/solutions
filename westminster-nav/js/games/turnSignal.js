@@ -13,7 +13,7 @@ export function turnSignal(root, ctx) {
   const stage = el('div', { class: 'stage' });
   const { el: mapEl, map } = mapPanel(ctx);
   const mapBox = el('div', { class: 'reveal hidden' }, mapEl);
-  root.append(el('h1', { class: 'game-title' }, '↔️ Turn Signal'), head, stage, mapBox);
+  root.append(el('h1', { class: 'game-title' }, 'Turn Signal'), head, stage, mapBox);
 
   const renderHead = () => head.replaceChildren(
     el('div', { class: 'row' }, picker.el),
