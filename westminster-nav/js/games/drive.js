@@ -114,14 +114,46 @@ function drive(root, ctx, mode) {
   const isStop = (n, cur = null) => {
     if (n === g.target || n === g.start || namedDegree(n) <= 1) return true;
     if (!cur) return degree(n) >= 3;
-    // Not counting a U-turn back down the other roadway of the same street.
+    // Any other named street here is an intersection, even one you can't turn onto directly.
+    const mineKey = G.edges[cur.id]?.key ?? nameKey(cur.name);
+    if ([...G.out[n], ...G.inc[n]].some((e) => G.edges[e].name && G.edges[e].key !== mineKey)) return true;
+    // Not counting a U-turn back down the other roadway of the same street, or
+    // a right-turn slip lane peeling off before the intersection itself.
     const ahead = new Set(G.out[n].filter((e) => {
       const x = G.edges[e];
       if (x.to === cur.from) return false;
+      if (isSlipLane(e)) return false;
       return !(x.key === G.edges[cur.id]?.key && Math.abs(angleDiff(cur.brg, bearing(G.pt(n), G.pt(x.to)))) > 135);
     }).map((e) => G.edges[e].to));
     return ahead.size !== 1;
   };
+
+  // A slip lane: an unnamed connector off a surface street that rejoins a surface
+  // street within a short distance. Ramps that reach a freeway are not slip lanes.
+  const slipCache = new Map();
+  function isSlipLane(e) {
+    if (slipCache.has(e)) return slipCache.get(e);
+    const x = G.edges[e];
+    let slip = false;
+    const cls = (id) => G.ways[G.edges[id].way].cls;
+    if (!x.name && cls(e) === 'link' && !G.inc[x.from].some((i) => /motorway|trunk/.test(cls(i)))) {
+      slip = true;
+      const seen = new Set([x.to]);
+      const queue = [{ n: x.to, len: x.len }];
+      while (queue.length) {
+        const { n, len } = queue.shift();
+        for (const o of G.out[n]) {
+          const y = G.edges[o];
+          if (/motorway|trunk/.test(cls(o))) slip = false;
+          if (y.name || seen.has(y.to) || len + y.len > 250) continue;
+          seen.add(y.to);
+          queue.push({ n: y.to, len: len + y.len });
+        }
+      }
+    }
+    slipCache.set(e, slip);
+    return slip;
+  }
 
   /** Road segments leaving n: forward edges, plus reversed incoming edges when backing up. */
   function segmentsFrom(n, reverse) {
@@ -179,6 +211,50 @@ function drive(root, ctx, mode) {
     return best;
   }
 
+  /**
+   * Turn onto the cross street heading the way the player asked: search the roads
+   * reachable from here through slip lanes and connectors, or a short way along
+   * our own street (across the median of a divided road), and take the cross
+   * street whose direction is closest to a true left or right.
+   */
+  function crossTurn(n, side) {
+    const mine = nameKey(g.street);
+    const want = g.heading + (side === 'left' ? -90 : 90);
+    const found = [];
+    const best = new Map([[n, 0]]);
+    const queue = [{ n, via: [], len: 0, own: 0 }];
+    while (queue.length) {
+      const cur = queue.shift();
+      for (const id of G.out[cur.n]) {
+        const e = G.edges[id];
+        if (!cur.via.length && e.to === g.prev) continue;
+        if (e.name && nameKey(e.name) !== mine) {
+          found.push({ via: cur.via, edge: id, brg: G.headingOut(id), name: shortName(e.name), len: cur.len });
+          continue;
+        }
+        // Along our own street only a short way: across a median or through the
+        // short stubs a complicated intersection is drawn with.
+        const own = e.name ? cur.own + e.len : cur.own;
+        if (e.name && own > 60) continue;
+        const len = cur.len + e.len;
+        if (len > (G.ways[e.way].cls === 'link' ? 2500 : 400) || cur.via.length >= 60) continue;
+        if (best.has(e.to) && best.get(e.to) <= len) continue;
+        best.set(e.to, len);
+        queue.push({ n: e.to, via: [...cur.via, id], len, own });
+      }
+    }
+    let pickd = null;
+    for (const c of found) {
+      const off = Math.abs(angleDiff(want, c.brg));
+      if (off > 55) continue;
+      const score = off + c.len / 8;
+      if (!pickd || score < pickd.score) pickd = { ...c, score };
+    }
+    return pickd;
+  }
+
+  const chooseTurn = (side) => crossTurn(g.node, side) || pickTurn(g.node, side) || nearTurn(side);
+
   /** What each arrow does from here (for button labels). */
   function preview() {
     const n = g.node;
@@ -190,7 +266,7 @@ function drive(root, ctx, mode) {
         return s ? { name: shortName(s.name) || 'unnamed road' } : null;
       })();
     const back = segmentsFrom(n, true).some((x) => Math.abs(angleDiff(g.heading + 180, x.brg)) <= LOOK);
-    return { ahead, left: pickTurn(n, 'left') || nearTurn('left'), right: pickTurn(n, 'right') || nearTurn('right'), back };
+    return { ahead, left: chooseTurn('left'), right: chooseTurn('right'), back };
   }
 
   // Divided roads: the turn may be one short hop ahead, across the median.
@@ -288,7 +364,7 @@ function drive(root, ctx, mode) {
 
   function turn(side) {
     if (g.done) return;
-    const t = pickTurn(g.node, side) || nearTurn(side);
+    const t = chooseTurn(side);
     if (!t) return flash(`No street to the ${side} here.`);
     g.lastMove = 'forward';
     if (t.hop) {
@@ -503,7 +579,7 @@ function drive(root, ctx, mode) {
         quiet = true;
         try {
           for (const a of seq) { if (!g.done) acts[a](); }
-          return { node: g.node, done: g.done, heading: g.heading, moved: g.node !== saved.node || !!g.pending !== !!saved.pending || Math.abs(angleDiff(g.heading, saved.heading)) > 1 };
+          return { node: g.node, street: g.street, pending: !!g.pending, done: g.done, heading: g.heading, moved: g.node !== saved.node || !!g.pending !== !!saved.pending || Math.abs(angleDiff(g.heading, saved.heading)) > 1 };
         } finally {
           g = saved;
           quiet = false;
