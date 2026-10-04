@@ -25,9 +25,12 @@ function drive(root, ctx, mode) {
   const prefs = store.load(`${mode}:prefs`, { showMap: false, hints: false, hospital: '' });
 
   // Hospitals the street data reaches (others are outside the downloaded map).
+  // A hospital counts only if its street connects to Westminster's road network.
+  const hub = ctx.stationNode(ctx.stations[0]);
   const hospitals = ctx.landmarks.filter((h) => h.type === 'hospital').map((h) => {
-    const n = G.nearestNode([h.lat, h.lon]);
-    return { ...h, p: [h.lat, h.lon], reach: n >= 0 && distance([h.lat, h.lon], G.pt(n)) < 400 };
+    const n = G.snap([h.lat, h.lon]);
+    const near = n >= 0 && distance([h.lat, h.lon], G.pt(n)) < 400;
+    return { ...h, p: [h.lat, h.lon], node: n, reach: near && isFinite(G.costsTo(n).dist[hub]) };
   });
   const reachable = hospitals.filter((h) => h.reach);
 
@@ -49,7 +52,7 @@ function drive(root, ctx, mode) {
   const renderHead = () => head.replaceChildren(...[
     el('div', { class: 'row' }, isT ? el('label', { class: 'inline' }, 'To ', hospSel) : picker.el, toggle('showMap', 'Show map'), toggle('hints', 'Hints')),
     isT && hospitals.length > reachable.length
-      ? el('small', { class: 'muted' }, `Not routable yet (outside the map area): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
+      ? el('small', { class: 'muted' }, `Not drivable yet (no connected streets in the map data): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
       : null,
     scoreBar(store.stats(mode)),
   ].filter(Boolean));
@@ -231,7 +234,7 @@ function drive(root, ctx, mode) {
         if (!h) { stage.append(el('div', { class: 'panel error' }, 'No hospital in data/landmarks.json is inside the map area.')); return; }
         const a = addressAwayFrom(ctx, h.p, 1500);
         const s = ctx.addressNode(a);
-        const target = G.snap(h.p);
+        const target = h.node;
         const outs = G.out[s];
         if (!outs.length) continue;
         const e0 = pick(outs);

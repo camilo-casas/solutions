@@ -1,12 +1,12 @@
 [
-  { "name": "AdventHealth Avista Hospital", "city": "Louisville", "type": "hospital", "lat": 39.95162, "lon": -105.15153, "source": "osm" },
-  { "name": "Good Samaritan Medical Center", "city": "Lafayette", "type": "hospital", "lat": 39.96986, "lon": -105.08656, "source": "osm" },
-  { "name": "UCHealth Broomfield Hospital", "city": "Broomfield", "type": "hospital", "lat": 39.91051, "lon": -105.09145, "source": "osm" },
-  { "name": "St. Anthony North Hospital", "city": "Westminster", "type": "hospital", "lat": 39.95574, "lon": -104.99132, "source": "osm" },
-  { "name": "84th Ave ER (St. Anthony)", "city": "Westminster", "type": "hospital", "lat": 39.85078, "lon": -105.01845, "source": "osm" },
-  { "name": "Lutheran Hospital", "city": "Golden", "type": "hospital", "lat": 39.7742, "lon": -105.1605, "source": "approximate" },
-  { "name": "St. Anthony Hospital (West)", "city": "Lakewood", "type": "hospital", "lat": 39.7186, "lon": -105.1278, "source": "approximate" },
-  { "name": "Denver Health Medical Center", "city": "Denver", "type": "hospital", "lat": 39.7277, "lon": -104.9913, "source": "approximate" },
-  { "name": "UCHealth University of Colorado Hospital", "city": "Aurora", "type": "hospital", "lat": 39.7425, "lon": -104.8417, "source": "approximate" },
-  { "name": "Children's Hospital Colorado", "city": "Aurora", "type": "hospital", "lat": 39.7423, "lon": -104.8366, "source": "approximate" }
+  {"name": "AdventHealth Avista Hospital", "city": "Louisville", "type": "hospital", "lat": 39.95162, "lon": -105.15153, "source": "osm"},
+  {"name": "Good Samaritan Medical Center", "city": "Lafayette", "type": "hospital", "lat": 39.96986, "lon": -105.08656, "source": "osm"},
+  {"name": "UCHealth Broomfield Hospital", "city": "Broomfield", "type": "hospital", "lat": 39.91051, "lon": -105.09145, "source": "osm"},
+  {"name": "St. Anthony North Hospital", "city": "Westminster", "type": "hospital", "lat": 39.95574, "lon": -104.99132, "source": "osm"},
+  {"name": "84th Ave ER (St. Anthony)", "city": "Westminster", "type": "hospital", "lat": 39.85078, "lon": -105.01845, "source": "osm"},
+  {"name": "Lutheran Hospital", "city": "Golden", "type": "hospital", "lat": 39.77089, "lon": -105.1461, "source": "osm"},
+  {"name": "St. Anthony Hospital (West)", "city": "Lakewood", "type": "hospital", "lat": 39.71446, "lon": -105.12921, "source": "osm"},
+  {"name": "Denver Health Medical Center", "city": "Denver", "type": "hospital", "lat": 39.72762, "lon": -104.99087, "source": "osm"},
+  {"name": "UCHealth University of Colorado Hospital", "city": "Aurora", "type": "hospital", "lat": 39.74254, "lon": -104.84166, "source": "osm"},
+  {"name": "Children's Hospital Colorado", "city": "Aurora", "type": "hospital", "lat": 39.74234, "lon": -104.83615, "source": "osm"}
 ]

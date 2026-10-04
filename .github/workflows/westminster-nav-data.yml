@@ -8,6 +8,7 @@ on:
   push:
     paths:
       - westminster-nav/tools/build-data.mjs
+      - westminster-nav/data/landmarks.json
       - .github/workflows/westminster-nav-data.yml
 
 permissions:

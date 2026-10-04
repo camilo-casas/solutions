@@ -91,10 +91,10 @@ To adjust one, open **Station setup** (link at the bottom of the home page), tap
 
 ## Hospitals
 
-Transporter can only drive to hospitals inside the downloaded street map: Avista, Good Samaritan, UCHealth Broomfield, St. Anthony North and the 84th Ave ER. Routing to Lutheran, St. Anthony (West), Denver Health, University of Colorado Hospital and Children's would need a wider map that includes I-25, US-36 and I-70.
+Transporter drives to every hospital in `data/landmarks.json`. Outside Westminster the map carries the metro freeways and main roads (I-25, I-70, I-76, US-36, C-470 and the like, plus primary arterials) and every street within 1.2 km of each hospital. Editing `landmarks.json` triggers a map rebuild, so a new hospital gets its surrounding streets automatically. On a freeway, ↑ drives to the next exit, and ← or → takes the exit ramp onto the cross street.
 
 
-`data/landmarks.json` lists the hospitals used by Cardinal. Entries marked `"source": "approximate"` are outside the downloaded map area, and their coordinates were entered by hand: Lutheran, St. Anthony (West), Denver Health, University of Colorado Hospital and Children's Colorado. They're accurate to within a few blocks, which is plenty for an 8-point compass.
+`data/landmarks.json` lists the hospitals used by Cardinal. All positions come from OpenStreetMap; the build prints the nearest OpenStreetMap hospital for each entry so you can check new ones.
 
 ## Run it locally
 
