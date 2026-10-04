@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g transform="translate(130 400) scale(1.3) rotate(-10)" stroke="#14110f" stroke-width="6.15" stroke-linejoin="round" stroke-linecap="round"><path d="M-24 48 L-40 -46 M-12 50 L-18 -52 M0 50 L2 -54 M12 50 L20 -50 M24 48 L40 -44" fill="none" stroke="#14110f" stroke-width="17.15"/><path d="M-24 48 L-40 -46 M-12 50 L-18 -52 M0 50 L2 -54 M12 50 L20 -50 M24 48 L40 -44" fill="none" stroke="#d9a066" stroke-width="11"/>
+<path d="M-31 2 Q0 12 31 2" fill="none" stroke="#14110f" stroke-width="14.15"/><path d="M-31 2 Q0 12 31 2" fill="none" stroke="#c1121f" stroke-width="8"/><path d="M2 8 q-10 12 -18 10 M2 8 q10 12 18 12" fill="none" stroke="#14110f" stroke-width="11.15"/><path d="M2 8 q-10 12 -18 10 M2 8 q10 12 18 12" fill="none" stroke="#c1121f" stroke-width="5"/></g>
+<g transform="translate(390 420) scale(1.3)" stroke="#14110f" stroke-width="6.15" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-54 8 Q-54 -36 0 -36 Q54 -36 54 8 Q54 24 0 24 Q-54 24 -54 8 Z" fill="#e0a33a"/>
+<path d="M-50 9 Q0 18 50 9" fill="none" stroke-width="3.69"/>
+<path d="M-32 -18 Q-16 -28 4 -28" fill="none" stroke="#f6d27a" stroke-width="6.15"/>
+<g fill="#fff" stroke-width="1.85"><ellipse cx="-22" cy="-8" rx="6" ry="3.5" transform="rotate(-20 -22 -8)"/><ellipse cx="8" cy="-20" rx="6" ry="3.5" transform="rotate(15 8 -20)"/><ellipse cx="28" cy="-4" rx="6" ry="3.5" transform="rotate(30 28 -4)"/><ellipse cx="-2" cy="-2" rx="6" ry="3.5"/><ellipse cx="-36" cy="-2" rx="5" ry="3" transform="rotate(-40 -36 -2)"/></g></g>
+<g transform="translate(150 210) scale(1.3 1.3)" stroke="#14110f" stroke-width="6.15" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-40 0 L-86 -20 L-80 14 Z" fill="#c9ced6"/>
+<ellipse rx="52" ry="42" fill="#fff"/>
+<path d="M-30 24 Q0 50 40 18 Q20 -2 -30 24 Z" fill="#fff" stroke="none"/>
+<circle cx="40" cy="-40" r="30" fill="#fff"/>
+<path d="M64 -48 L96 -46 L68 -38 Z M66 -34 L92 -26 L64 -28 Z" fill="#f28c28"/>
+<circle cx="50" cy="-46" r="8" fill="#fff" stroke-width="3.08"/><circle cx="52" cy="-46" r="4" fill="#14110f" stroke="none"/>
+<path d="M-28 -14 Q6 -26 22 2 Q0 20 -28 -14 Z" fill="#c9ced6"/></g>
+<g transform="translate(370 200) scale(-1.3 1.3)" stroke="#14110f" stroke-width="6.15" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-40 0 L-86 -20 L-80 14 Z" fill="#c9ced6"/>
+<ellipse rx="52" ry="42" fill="#fff"/>
+<path d="M-30 24 Q0 50 40 18 Q20 -2 -30 24 Z" fill="#fff" stroke="none"/>
+<circle cx="40" cy="-40" r="30" fill="#fff"/>
+<path d="M64 -48 L96 -46 L68 -38 Z M66 -34 L92 -26 L64 -28 Z" fill="#f28c28"/>
+<circle cx="50" cy="-46" r="8" fill="#fff" stroke-width="3.08"/><circle cx="52" cy="-46" r="4" fill="#14110f" stroke="none"/>
+<path d="M-28 -14 Q6 -26 22 2 Q0 20 -28 -14 Z" fill="#c9ced6"/></g>
+<path transform="translate(120 226) scale(1.6)" d="M0 -14 Q8 -16 10 -6 Q18 -4 14 4 Q16 14 6 12 Q0 18 -6 12 Q-16 12 -12 2 Q-18 -8 -8 -8 Q-8 -16 0 -14 Z" fill="#14110f"/><path transform="translate(170 246) scale(1.1)" d="M0 -14 Q8 -16 10 -6 Q18 -4 14 4 Q16 14 6 12 Q0 18 -6 12 Q-16 12 -12 2 Q-18 -8 -8 -8 Q-8 -16 0 -14 Z" fill="#14110f"/><path transform="translate(400 220) scale(1.6)" d="M0 -14 Q8 -16 10 -6 Q18 -4 14 4 Q16 14 6 12 Q0 18 -6 12 Q-16 12 -12 2 Q-18 -8 -8 -8 Q-8 -16 0 -14 Z" fill="#14110f"/><path transform="translate(350 240) scale(1.1)" d="M0 -14 Q8 -16 10 -6 Q18 -4 14 4 Q16 14 6 12 Q0 18 -6 12 Q-16 12 -12 2 Q-18 -8 -8 -8 Q-8 -16 0 -14 Z" fill="#14110f"/><path transform="translate(256 110) scale(2)" d="M0 -14 Q8 -16 10 -6 Q18 -4 14 4 Q16 14 6 12 Q0 18 -6 12 Q-16 12 -12 2 Q-18 -8 -8 -8 Q-8 -16 0 -14 Z" fill="#14110f"/>
+<path d="M256 180 l-14 30 M240 260 l16 30 M276 250 l-10 20" fill="none" stroke="#14110f" stroke-width="6" stroke-linecap="round"/>
+</svg>
