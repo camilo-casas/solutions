@@ -446,3 +446,8 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .hook-img { width: 56px; height: 56px; flex: none; border-radius: 10px; background: #fff8e1; border: 2px solid var(--gold); }
 .lr .btn.right { border-color: var(--good); background: var(--good-bg); color: var(--good); }
 .lr .btn.wrong { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+.map-dest { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; background: var(--header); color: var(--header-ink); border: 2px solid var(--gold); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; padding: 8px 12px; }
+.map-dest + .map-wrap { border-top-left-radius: 0; border-top-right-radius: 0; }
+.map-dest-label { font: 700 11px var(--font-body); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); }
+.map-dest b { font: 700 clamp(17px, 4.4vw, 21px) var(--font-display); }
+.map-dest .muted { color: #cfc6bb; }

@@ -59,7 +59,8 @@ function drive(root, ctx, mode) {
   const head = el('div', { class: 'game-head' });
   const stage = el('div', { class: 'stage' });
   const { el: mapEl, map } = mapPanel(ctx, { labels: 'major' });
-  const mapBox = el('div', { class: 'reveal hidden' }, mapEl);
+  const mapDest = el('div', { class: 'map-dest' });
+  const mapBox = el('div', { class: 'reveal hidden' }, mapDest, mapEl);
   root.append(el('h1', { class: 'game-title' }, title), head, stage, mapBox);
 
   const toggle = (key, label) => el('label', { class: 'inline' },
@@ -386,6 +387,10 @@ function drive(root, ctx, mode) {
   };
 
   function drawMap() {
+    mapDest.replaceChildren(
+      el('span', { class: 'map-dest-label' }, isT ? 'Transport to' : 'Responding to'),
+      el('b', {}, isT ? g.to.name : ctx.addressLabel(g.to)),
+      isT && g.to.city ? el('span', { class: 'muted' }, ` · ${g.to.city}`) : null);
     const at = !g.done && truck ? truck : { p: G.pt(g.node), h: g.heading };
     const routes = [{ pts: g.trail, color: COLORS.user, width: 4 }];
     if (g.done) routes.unshift({ pts: G.pathPoints(g.best.path), color: COLORS.best, width: 6, alpha: 0.5 });
