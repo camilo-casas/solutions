@@ -226,7 +226,7 @@ function synthAddresses(ways, rings, grid, count, rand) {
   return out;
 }
 
-function pack({ source, note, rings, ways, nodes, grid, addresses, pois }) {
+function pack({ source, note, rings, ways, nodes, grid, addresses, pois, exits = [] }) {
   const names = [];
   const nameIdx = new Map();
   const nid = (n) => {
@@ -250,6 +250,8 @@ function pack({ source, note, rings, ways, nodes, grid, addresses, pois }) {
     ways: ways.map((w) => [nid(w.name), w.cls, w.oneway, w.nodes]),
     addresses: addresses.map((a) => [a.num, nid(a.name), a.lat, a.lon, a.src]),
     pois: pois.map((p) => [p.name, p.type, round(p.lat), round(p.lon)]),
+    // Freeway exits: [node index, exit number, signed destination].
+    exits: exits.map((x) => [x.node, x.ref, x.dest]),
   };
 }
 
@@ -303,6 +305,11 @@ async function buildFromOSM() {
       nwr["public_transport"="station"]["name"](${bb});
     );
     out center tags;`, 'points of interest');
+  // Exit numbers live on the junction node where the ramp leaves the freeway.
+  // Optional: the games fall back to unnumbered exit signs without them.
+  const junctionEls = await overpass(`[out:json][timeout:180];
+    node["highway"="motorway_junction"](${REGION_BOX.join(',')});
+    out;`, 'freeway exit numbers').catch((err) => { process.stderr.write(`  skipping exit numbers: ${err.message}\n`); return []; });
 
   // Nodes and topology.
   const idIndex = new Map();
@@ -394,10 +401,19 @@ async function buildFromOSM() {
     if (near) process.stderr.write(`landmark ${l.name}: nearest OSM hospital "${near.name}" ${Math.round(near.d)} m away at ${near.lat.toFixed(5)}, ${near.lon.toFixed(5)}\n`);
   }
 
+  const exits = [];
+  for (const j of junctionEls) {
+    if (j.type !== 'node' || !idIndex.has(j.id)) continue;
+    const ramp = roads.find((w) => /_link$/.test(w.tags.highway) && w.nodes[0] === j.id);
+    const dest = (j.tags.exit_to || ramp?.tags.destination || '').split(';').map((d) => d.trim()).filter(Boolean).slice(0, 2).join(' / ');
+    if (j.tags.ref || dest) exits.push({ node: idIndex.get(j.id), ref: j.tags.ref || '', dest });
+  }
+  process.stderr.write(`freeway exits with numbers or destinations: ${exits.length}\n`);
+
   return pack({
     source: 'osm',
     note: 'Map data © OpenStreetMap contributors (ODbL).',
-    rings, ways, nodes: coords, grid, addresses, pois,
+    rings, ways, nodes: coords, grid, addresses, pois, exits,
   });
 }
 

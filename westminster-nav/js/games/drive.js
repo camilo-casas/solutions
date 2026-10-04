@@ -10,6 +10,7 @@ import { shortName, nameKey } from '../lib/names.js';
 import { el, pick, onKeys, scoreBar, fmtTime } from '../ui.js';
 import { mapPanel } from '../map.js';
 import { Windshield } from '../windshield.js';
+import { freewayExits, exitFor, exitTab } from '../lib/exits.js';
 import * as store from '../store.js';
 import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime } from './common.js';
 
@@ -330,6 +331,15 @@ function drive(root, ctx, mode) {
     stage.replaceChildren();
     const p = g.done ? null : preview();
     const cross = streetsAt(g.node).filter((n) => nameKey(n) !== nameKey(g.street));
+    // Freeway exits: name them by number and street, on the buttons and the trip line.
+    const exitHere = (freewayExits(ctx).get(g.node) || []).filter((x) => Math.abs(angleDiff(g.heading, x.along)) <= 40);
+    const turnLabel = (o) => {
+      const x = o.via?.length ? exitFor(ctx, o.hop ? o.hop.to : g.node, o.via[0]) : null;
+      return x ? `${exitTab(x)} · ${o.name} ${CARDINAL_NAMES[toCardinal(o.brg)].replace(/^./, (c) => c.toUpperCase())}` : o.name;
+    };
+    const at = exitHere.length
+      ? ` · At ${exitHere.map((x) => `${exitTab(x)} (${x.names.join(', ') || x.dest})`).join(' & ')}`
+      : cross.length ? ` · At ${cross.slice(0, 2).join(' & ')}` : '';
     const elapsed = (performance.now() - g.t0) / 1000;
     const pad = (dir, arrow, label, sub, enabled, fn) => el('button', {
       class: `pad pad-${dir}`, disabled: !enabled, onclick: fn, 'aria-label': `${dir}: ${label}${sub ? `, ${sub}` : ''}`,
@@ -345,11 +355,11 @@ function drive(root, ctx, mode) {
         isT ? el('small', { class: 'muted' }, g.to.city) : null,
         prefs.hints ? el('small', { class: 'hint' }, `Destination: ${gridNote(ctx, g.to.p)}. It's ${CARDINAL_NAMES[toCardinal(bearing(G.pt(g.node), g.to.p))]} of you, ${(distance(G.pt(g.node), g.to.p) / 1609.344).toFixed(1)} mi straight-line.`) : null),
       ws.el,
-      el('div', { class: 'trip-line' }, `${g.moves} moves · ${fmtTime(elapsed)}`, cross.length ? ` · At ${cross.slice(0, 2).join(' & ')}` : ''),
+      el('div', { class: 'trip-line' }, `${g.moves} moves · ${fmtTime(elapsed)}`, at),
       g.done ? null : el('div', { class: 'dpad' },
         pad('up', '▲', 'Forward', p.ahead ? p.ahead.name : 'no road', !!p.ahead, forward),
-        pad('left', '◀', 'Left', p.left ? p.left.name : '—', !!p.left, () => turn('left')),
-        pad('right', '▶', 'Right', p.right ? p.right.name : '—', !!p.right, () => turn('right')),
+        pad('left', '◀', 'Left', p.left ? turnLabel(p.left) : '—', !!p.left, () => turn('left')),
+        pad('right', '▶', 'Right', p.right ? turnLabel(p.right) : '—', !!p.right, () => turn('right')),
         pad('down', '▼', 'Back up', p.back ? 'one block' : '—', p.back, backward)),
       g.msg ? el('div', { class: 'drive-msg', role: 'status' }, g.msg) : null,
       g.done ? null : el('div', { class: 'row end' },

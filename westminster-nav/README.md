@@ -54,6 +54,7 @@ js/lib/grid.js        house number <-> coordinates (Denver grid)
 js/lib/graph.js       road graph, fastest routes, turn-by-turn directions
 js/map.js             canvas map (no tiles, so street names stay hidden until you ask)
 js/windshield.js      driver's-eye 3D view for Responder and Transporter (plain canvas, no library)
+js/lib/exits.js       freeway exits: where each ramp leads, for the exit signs
 js/games/*.js         the games, start screen, scoreboard and station setup
 js/scoreboard.js      shared (artifact database) or per-device scoreboard
 data/city.json        roads, addresses and points of interest (generated)
@@ -93,7 +94,7 @@ To adjust one, open **Station setup** (link at the bottom of the home page), tap
 
 ## Hospitals
 
-Transporter drives to every hospital in `data/landmarks.json`. Outside Westminster the map carries the metro freeways and main roads (I-25, I-70, I-76, US-36 and the like, plus primary arterials) and every street within 1.2 km of each hospital. Editing `landmarks.json` triggers a map rebuild, so a new hospital gets its surrounding streets automatically. On a freeway, ↑ drives to the next exit, and ← or → takes the exit ramp onto the cross street.
+Transporter drives to every hospital in `data/landmarks.json`. Outside Westminster the map carries the metro freeways and main roads (I-25, I-70, I-76, US-36 and the like, plus primary arterials) and every street within 1.2 km of each hospital. Editing `landmarks.json` triggers a map rebuild, so a new hospital gets its surrounding streets automatically. On a freeway, ↑ drives to the next exit, and ← or → takes the exit ramp onto the cross street. Every exit is signed: a green guide sign beside the ramp in the windshield (exit number when OpenStreetMap has one, the street the ramp reaches and which way it heads, like "W 104th Ave West"), and the turn buttons read "Exit 217 · W 104th Ave East". Ramps are unnamed in OpenStreetMap, so `js/lib/exits.js` follows each ramp to the first named road to get the sign text.
 
 
 `data/landmarks.json` lists the hospitals used by Cardinal. All positions come from OpenStreetMap; the build prints the nearest OpenStreetMap hospital for each entry so you can check new ones.

@@ -6,6 +6,7 @@
 import { makeProjection, bearing, angleDiff, toCardinal } from './lib/geo.js';
 import { shortName, nameKey } from './lib/names.js';
 import { el } from './ui.js';
+import { freewayExits, exitTab } from './lib/exits.js';
 
 const RAD = Math.PI / 180;
 const FAR = 750; // meters drawn
@@ -71,7 +72,15 @@ function buildScene(ctx) {
     const [x, y] = xy(n);
     put(x, y, { x, y, n, names }, 'signs');
   }
-  return { proj, cells, xy, segs };
+  // Freeway exit signs: one per ramp, standing on the side the ramp peels off.
+  const exits = [...freewayExits(ctx).values()].flat().map((x) => {
+    const [x0, y0] = xy(x.node);
+    const s = x.side === 'right' ? 1 : -1;
+    const a = x.along * RAD;
+    // 6 m past the gore, 11 m out to the ramp's side.
+    return { ...x, key: nameKey(x.freeway), sx: x0 + 6 * Math.sin(a) + s * 11 * Math.cos(a), sy: y0 + 6 * Math.cos(a) - s * 11 * Math.sin(a) };
+  });
+  return { proj, cells, xy, segs, exits };
 }
 
 export class Windshield {
@@ -343,6 +352,7 @@ export class Windshield {
     }
     visSigns.sort((a, b) => b.z - a.z);
     for (const v of visSigns) this.paintSign(g, v, cam, scr, F, h);
+    this.paintExits(g, cam, scr, F, h);
 
     this.paintHood(g, W, H);
 
@@ -398,6 +408,80 @@ export class Windshield {
     m.addColorStop(1, '#a9b6c6');
     g.fillStyle = m;
     g.fill();
+  }
+
+  /** Green freeway guide signs for the exits ahead on the freeway we're on. */
+  paintExits(g, cam, scr, F, h) {
+    const mine = nameKey(this.street || '');
+    if (!mine) return;
+    const ahead = [];
+    for (const x of this.scene.exits) {
+      if (x.key !== mine || Math.abs(angleDiff(h, x.along)) > 40) continue;
+      const c0 = cam(x.sx, x.sy);
+      if (c0[2] < 4 || c0[2] > FAR - 50 || Math.abs(c0[0]) > c0[2] * 1.2) continue;
+      ahead.push({ x, z: c0[2] });
+    }
+    ahead.sort((a, b) => b.z - a.z);
+    for (const { x, z } of ahead) {
+      const base = cam(x.sx, x.sy, 0);
+      const top = cam(x.sx, x.sy, 7.5);
+      const [bx, by] = scr(base);
+      const [tx, ty] = scr(top);
+      const px1 = F / z; // pixels per meter
+      const postW = Math.max(1, px1 * 0.25);
+      g.fillStyle = '#8d9196';
+      g.fillRect(bx - postW / 2, ty, postW, by - ty);
+      const size = Math.max(4, Math.min(19, px1 * 0.7));
+      if (size < 6) {
+        g.fillStyle = '#0f6b3a';
+        g.fillRect(tx - px1 * 2.5, ty - px1 * 1.5, px1 * 5, px1 * 1.6);
+        continue;
+      }
+      this.exitSign(g, tx, ty, size, x);
+    }
+  }
+
+  exitSign(g, cx, bottom, size, x) {
+    const lines = x.names.length ? x.names : [x.dest || 'Exit'];
+    const arrow = x.side === 'right' ? '↗' : '↖';
+    const big = `700 ${size}px "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif`;
+    const tabFont = `700 ${size * 0.7}px "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif`;
+    g.font = big;
+    const textW = Math.max(...lines.map((l) => g.measureText(l).width));
+    const w = textW + size * 2.6;
+    const lineH = size * 1.15;
+    const hgt = lines.length * lineH + size * 0.7;
+    const W = this.canvas.clientWidth;
+    const left = Math.max(W * 0.06, Math.min(cx - w / 2, W * 0.94 - w));
+    const top = Math.max(size * 1.2, bottom - hgt);
+    // Exit tab on top, at the ramp's side, like a real guide sign.
+    const tab = exitTab(x).toUpperCase();
+    g.font = tabFont;
+    const tabW = g.measureText(tab).width + size * 0.8;
+    const tabH = size * 0.95;
+    const tabX = x.side === 'right' ? left + w - tabW : left;
+    g.fillStyle = '#0f6b3a';
+    g.strokeStyle = '#fff';
+    g.lineWidth = Math.max(1, size * 0.07);
+    roundRect(g, tabX, top - tabH + size * 0.1, tabW, tabH, size * 0.15);
+    g.fill();
+    g.stroke();
+    g.fillStyle = '#fff';
+    g.textBaseline = 'middle';
+    g.textAlign = 'left';
+    g.fillText(tab, tabX + size * 0.4, top - tabH / 2 + size * 0.12);
+    // Main panel.
+    g.fillStyle = '#0f6b3a';
+    roundRect(g, left, top, w, hgt, size * 0.2);
+    g.fill();
+    roundRect(g, left + size * 0.12, top + size * 0.12, w - size * 0.24, hgt - size * 0.24, size * 0.14);
+    g.stroke();
+    g.fillStyle = '#fff';
+    g.font = big;
+    const textX = x.side === 'right' ? left + size * 0.55 : left + size * 1.9;
+    lines.forEach((l, i) => g.fillText(l, textX, top + size * 0.35 + lineH * (i + 0.5)));
+    g.font = `700 ${size * 1.3}px system-ui, sans-serif`;
+    g.fillText(arrow, x.side === 'right' ? left + w - size * 1.65 : left + size * 0.4, top + hgt / 2);
   }
 
   /** The cross street a corner's blade names: not the road we're on, and the one most nearly across our heading. */
