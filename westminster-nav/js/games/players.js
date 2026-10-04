@@ -73,8 +73,8 @@ export function scores(root) {
     }, t.label)));
     note.textContent = mode === 'shared'
       ? (board.isReadOnly()
-        ? 'Shared scoreboard. You can view it, but your scores can\'t be posted: ask the page owner for Contributor access.'
-        : 'Shared scoreboard: everyone who opens this page sees it. Scores post as you play.')
+        ? 'Shared scoreboard. You can view it, but your scores can\'t be posted: ask the page owner for access.'
+        : 'Shared scoreboard: everyone who plays on this site sees it. Scores post as you play.')
       : 'Scoreboard for players on this device.';
     const pick = (r) => (tab === 'all' ? r : { ...r, ...(r.games?.[tab] || { points: 0, played: 0, correct: 0, best: 0 }) });
     const list = rows.map(pick).filter((r) => r.played > 0).sort((a, b) => b.points - a.points || b.correct - a.correct);
@@ -98,5 +98,6 @@ export function scores(root) {
         el('td', { class: 'num' }, r.best)))))));
   }
   const stop = board.watch((r, m) => { rows = r; mode = m; render(); });
+  board.refresh();
   return { destroy: stop };
 }

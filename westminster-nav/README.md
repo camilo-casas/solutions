@@ -37,7 +37,17 @@ The colors come from the WFD patch (black, fire-engine red, gold, maroon). The l
 The start screen asks for a player name, or you can play anonymously. Each name keeps its own scores and flash card progress on the device, and the 👤 chip in the header switches players (handy on a shared station tablet). Anonymous play is never posted.
 
 - **As a Claude artifact**, the scoreboard is shared: everyone who opens the page sees everyone's totals, which are stored in the artifact's database at `scores/<account>`. People need **Contributor** access (or higher) on the artifact to post scores. Viewers can see the board but not post to it.
-- **On GitHub Pages or a local server** there's no backend, so the board lists the named players on that device. A shared board here would need a small backend (Firebase, Supabase, or a Google Sheet behind Apps Script) plugged into `js/scoreboard.js`.
+- **On your own web host** (Netlify, Hostinger, Ionos, GitHub Pages), the board is shared through Google Cloud Firestore, project `wfd-nav-trainer-scoreboard` (set in `FIRESTORE` at the top of `js/scoreboard.js`). Each player on each device has one document, `players/<device>-<name>`. Nobody needs an account.
+- If Firestore can't be reached (or isn't set up yet), the board quietly falls back to the named players on that device.
+
+### Shared scoreboard setup (once)
+
+1. In the [Firebase console](https://console.firebase.google.com), open the project **wfd-nav-trainer-scoreboard**.
+2. **Build → Firestore Database → Create database.** Pick a US location (for example `us-central1`), then **Start in production mode**.
+3. Open the **Rules** tab, replace everything with the contents of `firestore.rules`, and click **Publish**. The rules let anyone read the board and only accept score entries with the expected fields and sensible values; nothing can be deleted from the site.
+4. Reload your site and open **Scoreboard**: the note reads "Shared scoreboard: everyone who plays on this site sees it."
+
+The free tier (Spark plan) covers a department easily: 50,000 reads and 20,000 writes a day. Anyone who knows the site could post a made-up score under any name, since there are no logins. To clear a bad entry, delete its document in the Firebase console.
 
 ## Project layout
 
@@ -59,7 +69,8 @@ js/lib/exits.js       freeway exits: where each ramp leads, for the exit signs
 js/lib/streetBlock.js the grid number printed on each street blade
 js/lib/crosstown.js   cross-town avenues: each one's unbroken run, ends and breaks, from the map data
 js/games/*.js         the games, start screen, scoreboard and station setup
-js/scoreboard.js      shared (artifact database) or per-device scoreboard
+js/scoreboard.js      shared scoreboard (artifact database or Firestore), else per-device
+firestore.rules       security rules for the Firestore scoreboard
 data/city.json        roads, addresses and points of interest (generated)
 data/stations.json    the six WFD stations: address, bay street, bay facing
 data/landmarks.json   key hospitals for the Cardinal game

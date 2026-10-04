@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// Security rules for the WFD Nav Trainer shared scoreboard (Cloud Firestore).
+// Paste into Firebase console -> Firestore Database -> Rules, then Publish.
+// Anyone can read the board; a score document must have exactly these fields
+// with sensible values, and nothing can be deleted from the site.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /players/{id} {
+      allow read: if true;
+      allow create, update: if id.size() <= 80
+        && request.resource.data.keys().hasOnly(['name', 'points', 'played', 'correct', 'best', 'games', 'updated'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 40
+        && request.resource.data.points is int && request.resource.data.points >= 0 && request.resource.data.points < 10000000
+        && request.resource.data.played is int && request.resource.data.played >= 0
+        && request.resource.data.correct is int && request.resource.data.correct >= 0
+        && request.resource.data.correct <= request.resource.data.played
+        && request.resource.data.best is int && request.resource.data.best >= 0
+        && request.resource.data.games is string && request.resource.data.games.size() <= 4000
+        && request.resource.data.updated is timestamp;
+      allow delete: if false;
+    }
+  }
+}
