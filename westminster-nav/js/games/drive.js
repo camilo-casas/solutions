@@ -128,26 +128,49 @@ function drive(root, ctx, mode) {
     return ahead.size !== 1;
   };
 
-  // A slip lane: an unnamed connector off a surface street that rejoins a surface
-  // street within a short distance. Ramps that reach a freeway are not slip lanes.
+  // A slip lane: an unnamed connector off a surface street that reaches a cross
+  // street which also meets our street directly close by (so the truck stops at
+  // that corner anyway). Ramps to a freeway, and connectors that are the only
+  // way onto a side street, are real choices.
   const slipCache = new Map();
   function isSlipLane(e) {
     if (slipCache.has(e)) return slipCache.get(e);
     const x = G.edges[e];
-    let slip = false;
     const cls = (id) => G.ways[G.edges[id].way].cls;
-    if (!x.name && cls(e) === 'link' && !G.inc[x.from].some((i) => /motorway|trunk/.test(cls(i)))) {
-      slip = true;
+    let slip = false;
+    const own = G.inc[x.from].map((i) => G.edges[i]).find((i) => i.name)?.key;
+    if (!x.name && cls(e) === 'link' && own && !G.inc[x.from].some((i) => /motorway|trunk/.test(cls(i)))) {
+      // Named streets the connector reaches.
+      const reached = new Set();
+      let freeway = false;
       const seen = new Set([x.to]);
       const queue = [{ n: x.to, len: x.len }];
       while (queue.length) {
         const { n, len } = queue.shift();
         for (const o of G.out[n]) {
           const y = G.edges[o];
-          if (/motorway|trunk/.test(cls(o))) slip = false;
-          if (y.name || seen.has(y.to) || len + y.len > 250) continue;
+          if (/motorway|trunk/.test(cls(o))) freeway = true;
+          if (y.name) { if (y.key !== own) reached.add(y.key); continue; }
+          if (seen.has(y.to) || len + y.len > 250) continue;
           seen.add(y.to);
           queue.push({ n: y.to, len: len + y.len });
+        }
+      }
+      if (!freeway && reached.size) {
+        // Does one of them also touch our street within 150 m of here?
+        const near = new Set([x.from]);
+        const q2 = [{ n: x.from, len: 0 }];
+        while (q2.length && !slip) {
+          const { n, len } = q2.shift();
+          for (const o of [...G.out[n], ...G.inc[n]]) {
+            const y = G.edges[o];
+            if (y.name && reached.has(y.key)) { slip = true; break; }
+            if (y.key !== own) continue;
+            const m = y.from === n ? y.to : y.from;
+            if (near.has(m) || len + y.len > 150) continue;
+            near.add(m);
+            q2.push({ n: m, len: len + y.len });
+          }
         }
       }
     }
@@ -243,6 +266,27 @@ function drive(root, ctx, mode) {
         queue.push({ n: e.to, via: [...cur.via, id], len, own });
       }
     }
+    // Slip lanes passed on the way in.
+    if (n === g.node) {
+      for (const slip of g.slips || []) {
+        const first = G.edges[slip.edge];
+        const q = [{ n: first.to, via: [slip.edge], len: first.len }];
+        const seen = new Set([first.to]);
+        while (q.length) {
+          const cur = q.shift();
+          for (const id of G.out[cur.n]) {
+            const e = G.edges[id];
+            if (e.name) {
+              if (nameKey(e.name) !== mine) found.push({ via: cur.via, edge: id, brg: G.headingOut(id), name: shortName(e.name), len: slip.back + cur.len, slip });
+              continue;
+            }
+            if (seen.has(e.to) || cur.len + e.len > 400) continue;
+            seen.add(e.to);
+            q.push({ n: e.to, via: [...cur.via, id], len: cur.len + e.len });
+          }
+        }
+      }
+    }
     let pickd = null;
     for (const c of found) {
       const off = Math.abs(angleDiff(want, c.brg));
@@ -317,7 +361,7 @@ function drive(root, ctx, mode) {
     // A divided cross street is one intersection with two roadways: clear both
     // in one move. (Turns onto the far roadway are offered from the near one.)
     let from = g.node;
-    for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < 3; k++) {
       const last = segs[segs.length - 1];
       const n = last.to;
       if (n === g.target) break;
@@ -326,8 +370,11 @@ function drive(root, ctx, mode) {
       const mine = nameKey(last.name || g.street);
       const crossAt = (m) => streetsAt(m).filter((x) => nameKey(x) !== mine);
       const shared = crossAt(from).filter((x) => crossAt(n).includes(x));
-      if (len > 45 || !shared.length) break;
-      const nxt = segmentsFrom(n, false).filter((x) => x.to !== last.from && Math.abs(angleDiff(last.brg, x.brg)) <= LOOK)
+      // Keep going through a stop with no cross street at all (a tangle of the
+      // street's own pieces), or across the far roadway of a divided cross street.
+      if (crossAt(n).length && (len > 45 || !shared.length)) break;
+      // Tangled intersections jog: allow a wider angle, preferring our own street.
+      const nxt = segmentsFrom(n, false).filter((x) => x.to !== last.from && Math.abs(angleDiff(last.brg, x.brg)) <= (nameKey(x.name) === mine ? 70 : LOOK))
         .sort((a, b) => Math.abs(angleDiff(last.brg, a.brg)) - Math.abs(angleDiff(last.brg, b.brg)) - (nameKey(a.name) === mine ? 10 : 0) + (nameKey(b.name) === mine ? 10 : 0))[0];
       if (!nxt) break;
       from = n;
@@ -336,6 +383,24 @@ function drive(root, ctx, mode) {
     g.lastMove = 'forward';
     g.moves++;
     g.pending = null;
+    // Slip lanes passed in the last 150 m: a turn can still take one, backing
+    // the truck up to where it peels off (the map often has no turn at the corner itself).
+    g.slips = [];
+    {
+      const cum = [];
+      let c = g.cost;
+      let d = g.dist;
+      for (const x of segs) { c += x.cost; d += x.len; cum.push([c, d]); }
+      let back = 0;
+      for (let i = segs.length - 2; i >= 0 && back <= 150; i--) {
+        back += segs[i + 1].len;
+        const nd = segs[i].to;
+        for (const e of G.out[nd]) {
+          if (e === segs[i + 1].id || !isSlipLane(e)) continue;
+          g.slips.push({ node: nd, prev: segs[i].from, edge: e, back, trail: g.trail.length + i + 1, cost: cum[i][0], dist: cum[i][1] });
+        }
+      }
+    }
     const last = segs[segs.length - 1];
     g.prev = last.from;
     g.node = last.to;
@@ -347,6 +412,7 @@ function drive(root, ctx, mode) {
 
   function backward() {
     if (g.done) return;
+    g.slips = [];
     const first = segmentsFrom(g.node, true).filter((s) => Math.abs(angleDiff(g.heading + 180, s.brg)) <= LOOK)
       .sort((a, b) => Math.abs(angleDiff(g.heading + 180, a.brg)) - Math.abs(angleDiff(g.heading + 180, b.brg)))[0];
     if (!first) return flash('No room to back up here.');
@@ -367,6 +433,16 @@ function drive(root, ctx, mode) {
     const t = chooseTurn(side);
     if (!t) return flash(`No street to the ${side} here.`);
     g.lastMove = 'forward';
+    if (t.slip) {
+      // Back up to where the slip lane peels off, then take it.
+      const sl = t.slip;
+      g.trail.length = sl.trail;
+      g.cost = sl.cost;
+      g.dist = sl.dist;
+      g.node = sl.node;
+      g.prev = sl.prev;
+    }
+    g.slips = [];
     if (t.hop) {
       g.node = t.hop.to;
       if (addSegs([t.hop])) return arrive();
@@ -440,7 +516,10 @@ function drive(root, ctx, mode) {
   /** Animate the windshield from what it last showed to the current state. */
   function syncView() {
     if (!seen) return;
-    if (g.trail.length > seen.trail) {
+    if (g.trail.length < seen.trail) {
+      // Backed up to a slip lane: jump the view there.
+      ws.reset({ node: g.node, heading: g.heading, street: g.street, dist: g.dist, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
+    } else if (g.trail.length > seen.trail) {
       ws.go({ kind: g.lastMove, pts: g.trail.slice(seen.trail - 1), heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
     } else if (Math.abs(angleDiff(seen.heading, g.heading)) > 0.5 || seen.pending !== g.pending) {
       ws.go({ kind: 'turn', heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
