@@ -11,11 +11,14 @@ const DIRS = { west: 'W', east: 'E', north: 'N', south: 'S' };
 const SUFFIX_ABBR = new Set(Object.values(SUFFIX).map((s) => s.toLowerCase()).concat(['ave', 'av', 'blv']));
 const DIR_ABBR = new Set(['w', 'e', 'n', 's', 'west', 'east', 'north', 'south']);
 
-/** "West 92nd Avenue" -> "W 92nd Ave" */
+/** "West 92nd Avenue" -> "W 92nd Ave"; "North Lowell Boulevard" -> "Lowell Blvd" */
 export function shortName(name) {
   if (!name) return '';
-  return name
-    .split(/\s+/)
+  const words = name.split(/\s+/);
+  // Crews (and the rotation sheet) say "Lowell Blvd", not "N Lowell Blvd"; the
+  // W or E on numbered avenues stays.
+  if (words.length > 2 && /^(north|south|n|s)$/i.test(words[0]) && !/^\d/.test(words[1])) words.shift();
+  return words
     .map((w, i, arr) => {
       const l = w.toLowerCase();
       if (i === 0 && DIRS[l] && arr.length > 1) return DIRS[l];

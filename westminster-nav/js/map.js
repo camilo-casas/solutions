@@ -310,10 +310,10 @@ export class CityMap {
     }
   }
 
-  /** Turned map: a small north arrow in the lower left. */
+  /** Turned map: a small north arrow in the upper left. */
   paintNorth(g, fg, bg) {
     const x = 26;
-    const y = this.size.h - 26;
+    const y = 26;
     const a = (-this.view.rot * Math.PI) / 180;
     g.save();
     g.beginPath();
