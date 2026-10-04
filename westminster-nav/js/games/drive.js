@@ -401,7 +401,7 @@ function drive(root, ctx, mode) {
         quiet = true;
         try {
           for (const a of seq) { if (!g.done) acts[a](); }
-          return { node: g.node, done: g.done, moved: g.node !== saved.node || !!g.pending !== !!saved.pending };
+          return { node: g.node, done: g.done, heading: g.heading, moved: g.node !== saved.node || !!g.pending !== !!saved.pending || Math.abs(angleDiff(g.heading, saved.heading)) > 1 };
         } finally {
           g = saved;
           quiet = false;
