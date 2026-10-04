@@ -32,7 +32,11 @@ export function stationCard(s) {
 }
 
 /** Random address at least `minDist` meters from a point. */
-export function addressAwayFrom(ctx, p, minDist = 500) {
+export function addressAwayFrom(ctx, p, minDist = 500, maxDist = Infinity) {
+  if (isFinite(maxDist)) {
+    const near = ctx.addresses.filter((a) => { const d = distance(a.p, p); return d >= minDist && d <= maxDist; });
+    if (near.length) return pick(near);
+  }
   for (let i = 0; i < 50; i++) {
     const a = ctx.randomAddress();
     if (distance(a.p, p) >= minDist) return a;

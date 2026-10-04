@@ -20,6 +20,11 @@ const SPEED = 13; // m/s, for backing-up cost
 export function responder(root, ctx) { return drive(root, ctx, 'responder'); }
 export function transporter(root, ctx) { return drive(root, ctx, 'transporter'); }
 
+// Each station's district reaches about 3 to 4 miles out; Responder calls stay
+// inside it. A station in data/stations.json can set its own "radiusMi".
+const DISTRICT_MI = 3.5;
+const districtMi = (st) => st.radiusMi || DISTRICT_MI;
+
 function drive(root, ctx, mode) {
   const G = ctx.graph;
   const isT = mode === 'transporter';
@@ -75,6 +80,7 @@ function drive(root, ctx, mode) {
     ` ${label}`);
   const renderHead = () => head.replaceChildren(...[
     el('div', { class: 'row' }, isT ? null : picker.el, toggle('hints', 'Hints')),
+    isT ? null : el('small', { class: 'muted' }, `Calls stay in the station's district: every address is within about ${DISTRICT_MI} miles of the station.`),
     isT ? hospToggles() : null,
     isT && hospitals.length > reachable.length
       ? el('small', { class: 'muted' }, `Not drivable yet (no connected streets in the map data): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
@@ -285,7 +291,7 @@ function drive(root, ctx, mode) {
       } else {
         const st = picker.get();
         const s = ctx.stationNode(st);
-        const a = addressAwayFrom(ctx, [st.lat, st.lon], 800);
+        const a = addressAwayFrom(ctx, [st.lat, st.lon], 800, districtMi(st) * 1609.344);
         const target = ctx.addressNode(a);
         const { opts } = G.departureOptions(s, st.facing, st.street, target);
         const best = [opts.left, opts.right].filter((o) => o && isFinite(o.cost)).sort((x, y) => x.cost - y.cost)[0];
