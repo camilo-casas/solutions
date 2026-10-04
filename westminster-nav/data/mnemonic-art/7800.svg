@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g transform="translate(110 120) scale(1.25)" stroke="#14110f" stroke-width="6.4" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-34 -66 a34 10 0 1 0 68 0 a34 10 0 1 0 -68 0" fill="none" stroke="#14110f" stroke-width="16.4"/><path d="M-34 -66 a34 10 0 1 0 68 0 a34 10 0 1 0 -68 0" fill="none" stroke="#f2b705" stroke-width="10"/>
+<path d="M-56 30 Q-82 30 -78 6 Q-74 -16 -50 -12 Q-46 -42 -16 -36 Q2 -56 26 -40 Q52 -48 56 -16 Q82 -12 78 10 Q74 30 52 30 Z" fill="#fff"/>
+<path d="M-40 4 Q-30 -6 -18 0" fill="none" stroke="#dbe9f5" stroke-width="6.4"/></g>
+<g transform="translate(390 370) scale(1.6)" stroke="#14110f" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+<rect x="-66" y="-70" width="20" height="146" fill="#8d8a85"/><rect x="46" y="-70" width="20" height="146" fill="#8d8a85"/>
+<rect x="-70" y="-82" width="28" height="12" fill="#a8a29a"/><rect x="42" y="-82" width="28" height="12" fill="#a8a29a"/>
+<path d="M-30 -58 V72 M-10 -58 V72 M10 -58 V72 M30 -58 V72 M-46 -36 H46 M-46 52 H46" fill="none" stroke-width="4"/>
+<path d="M-38 -56 L-30 -80 L-22 -56 Z M-18 -56 L-10 -80 L-2 -56 Z M2 -56 L10 -80 L18 -56 Z M22 -56 L30 -80 L38 -56 Z" fill="#14110f" stroke-width="2"/>
+<path d="M-20 -36 Q-20 8 0 8 Q20 8 20 -36" fill="none" stroke-width="3"/></g>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M150 180 L440 370" stroke-width="20"/><path d="M150 180 L440 370" stroke="#4f9a3a" stroke-width="8"/>
+<path d="M150 180 L170 193 L156 160 L138 150 Z M150 180 L170 193 L136 196 L118 190 Z" fill="#c1121f" stroke-width="5"/>
+<g transform="translate(440 370) rotate(33) scale(1.5)">
+<ellipse rx="44" ry="30" fill="#fff"/>
+<circle cx="-24" cy="-8" r="7" fill="#fff8e1" stroke-width="3"/><circle cx="-8" cy="-14" r="7" fill="#fff8e1" stroke-width="3"/><circle cx="10" cy="-12" r="7" fill="#fff8e1" stroke-width="3"/><circle cx="26" cy="-4" r="7" fill="#fff8e1" stroke-width="3"/><circle cx="-16" cy="8" r="7" fill="#fff8e1" stroke-width="3"/><circle cx="2" cy="6" r="7" fill="#fff8e1" stroke-width="3"/><circle cx="18" cy="10" r="7" fill="#fff8e1" stroke-width="3"/>
+</g>
+<path d="M260 230 l10 -24 M290 260 l20 -16" fill="none"/>
+</g>
+<path d="M210 260 l-30 -20 M240 290 l-30 -20" fill="none" stroke="#14110f" stroke-width="6" stroke-linecap="round"/>
+</svg>
