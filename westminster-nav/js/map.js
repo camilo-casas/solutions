@@ -6,6 +6,8 @@ import { shortName } from './lib/names.js';
 
 const WIDTH = { trunk: 3, primary: 3, secondary: 2.4, tertiary: 1.8, link: 1.2, motorway: 3.4, residential: 1, unclassified: 1, service: 0.6 };
 const MAJOR = new Set(['motorway', 'trunk', 'primary', 'secondary']);
+// Streets labeled in "major names only" mode: freeways, highways and arterials.
+const LABEL_MAJOR = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary']);
 
 export class CityMap {
   constructor(canvas, ctx) {
@@ -258,43 +260,93 @@ export class CityMap {
     }
   }
 
+  /** Join each street's way pieces end to end so labels can span many short pieces. */
+  labelChains() {
+    if (this.chains) return this.chains;
+    const RANK = { motorway: 6, trunk: 5, primary: 4, secondary: 3, tertiary: 2 };
+    const byName = new Map();
+    for (const w of this.ways) {
+      if (!w.name || w.nodes.length < 2) continue;
+      if (!byName.has(w.name)) byName.set(w.name, []);
+      byName.get(w.name).push(w);
+    }
+    const chains = [];
+    for (const [name, ws] of byName) {
+      const pool = ws.map((w) => ({ nodes: w.nodes.slice(), cls: w.cls }));
+      while (pool.length) {
+        const c = pool.pop();
+        let grew = true;
+        while (grew) {
+          grew = false;
+          for (let i = 0; i < pool.length; i++) {
+            const o = pool[i].nodes;
+            const head = c.nodes[0];
+            const tail = c.nodes[c.nodes.length - 1];
+            if (o[0] === tail) c.nodes.push(...o.slice(1));
+            else if (o[o.length - 1] === tail) c.nodes.push(...o.slice(0, -1).reverse());
+            else if (o[o.length - 1] === head) c.nodes.unshift(...o.slice(0, -1));
+            else if (o[0] === head) c.nodes.unshift(...o.slice(1).reverse());
+            else continue;
+            if ((RANK[pool[i].cls] || 0) > (RANK[c.cls] || 0)) c.cls = pool[i].cls;
+            pool.splice(i, 1);
+            grew = true;
+            break;
+          }
+        }
+        chains.push({ name, cls: c.cls, rank: RANK[c.cls] || 0, nodes: c.nodes });
+      }
+    }
+    chains.sort((a, b) => b.rank - a.rank);
+    this.chains = chains;
+    return chains;
+  }
+
   paintLabels(g, fg, bg) {
     const placed = [];
-    g.font = '11px system-ui, sans-serif';
+    const majorOnly = this.layers.labels === 'major';
+    g.font = majorOnly ? '600 12px system-ui, sans-serif' : '11px system-ui, sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    const seenNear = (x, y, name) => placed.some((p) => (p.name === name ? Math.hypot(p.x - x, p.y - y) < 220 : Math.hypot(p.x - x, p.y - y) < 40));
-    for (let k = this.order.length - 1; k >= 0; k--) {
-      const w = this.ways[this.order[k]];
-      if (!w.name || w.nodes.length < 2) continue;
-      // Longest screen segment of the way.
-      let best = null;
-      for (let i = 0; i + 1 < w.nodes.length; i++) {
-        const [ax, ay] = this.toScreen(this.xs[w.nodes[i]], this.ys[w.nodes[i]]);
-        const [bx, by] = this.toScreen(this.xs[w.nodes[i + 1]], this.ys[w.nodes[i + 1]]);
+    const { w: W, h: H } = this.size;
+    const seenNear = (x, y, name) => placed.some((p) => (p.name === name ? Math.hypot(p.x - x, p.y - y) < 260 : Math.hypot(p.x - x, p.y - y) < 36));
+    for (const c of this.labelChains()) {
+      if (majorOnly && !LABEL_MAJOR.has(c.cls)) continue;
+      const pts = c.nodes.map((n) => this.toScreen(this.xs[n], this.ys[n]));
+      const need = g.measureText(c.name).width + 18;
+      // Find stretches that are straight enough and long enough to hold the name.
+      for (let i = 0; i < pts.length - 1;) {
+        let j = i + 1;
+        while (j < pts.length && Math.hypot(pts[j][0] - pts[i][0], pts[j][1] - pts[i][1]) < need) j++;
+        if (j >= pts.length) break;
+        const [ax, ay] = pts[i];
+        const [bx, by] = pts[j];
         const L = Math.hypot(bx - ax, by - ay);
-        if (!best || L > best.L) best = { ax, ay, bx, by, L };
+        let straight = true;
+        for (let k = i + 1; k < j && straight; k++) {
+          const d = Math.abs((bx - ax) * (ay - pts[k][1]) - (ax - pts[k][0]) * (by - ay)) / L;
+          if (d > 4) straight = false;
+        }
+        const x = (ax + bx) / 2;
+        const y = (ay + by) / 2;
+        if (!straight || x < 20 || y < 12 || x > W - 20 || y > H - 12 || seenNear(x, y, c.name)) { i++; continue; }
+        let a = Math.atan2(by - ay, bx - ax);
+        if (a > Math.PI / 2) a -= Math.PI;
+        if (a < -Math.PI / 2) a += Math.PI;
+        placed.push({ x, y, name: c.name });
+        g.save();
+        g.translate(x, y);
+        g.rotate(a);
+        g.lineWidth = 3.5;
+        g.strokeStyle = bg;
+        g.strokeText(c.name, 0, 0);
+        g.fillStyle = fg;
+        g.fillText(c.name, 0, 0);
+        g.restore();
+        i = j;
       }
-      const tw = g.measureText(w.name).width;
-      if (best.L < tw + 16) continue;
-      const x = (best.ax + best.bx) / 2;
-      const y = (best.ay + best.by) / 2;
-      if (x < 0 || y < 0 || x > this.size.w || y > this.size.h || seenNear(x, y, w.name)) continue;
-      let a = Math.atan2(best.by - best.ay, best.bx - best.ax);
-      if (a > Math.PI / 2) a -= Math.PI;
-      if (a < -Math.PI / 2) a += Math.PI;
-      placed.push({ x, y, name: w.name });
-      g.save();
-      g.translate(x, y);
-      g.rotate(a);
-      g.lineWidth = 3;
-      g.strokeStyle = bg;
-      g.strokeText(w.name, 0, 0);
-      g.fillStyle = fg;
-      g.fillText(w.name, 0, 0);
-      g.restore();
     }
   }
+
 }
 
 /** Map panel with zoom buttons and a labels toggle. */
@@ -321,11 +373,17 @@ export function mapPanel(ctx, { labels = false, height } = {}) {
   };
   btn('+', 'Zoom in', () => map.zoom(1.5));
   btn('−', 'Zoom out', () => map.zoom(1 / 1.5));
-  const lb = btn('Aa', 'Toggle street names', () => {
-    map.set({ labels: !map.layers.labels });
-    lb.classList.toggle('on', map.layers.labels);
+  // Street names: maps that start with major names cycle major -> all -> off.
+  const states = labels === 'major' ? ['major', true, false] : [false, true];
+  const titles = { major: 'Street names: major streets (tap for all)', true: 'Street names: all (tap to hide)', false: 'Street names: off (tap to show)' };
+  const lb = btn('Aa', titles[labels], () => {
+    const next = states[(states.indexOf(map.layers.labels) + 1) % states.length];
+    map.set({ labels: next });
+    lb.classList.toggle('on', !!next);
+    lb.title = titles[next];
+    lb.setAttribute('aria-label', titles[next]);
   });
-  lb.classList.toggle('on', labels);
+  lb.classList.toggle('on', !!labels);
   wrap.append(bar);
   return { el: wrap, map };
 }

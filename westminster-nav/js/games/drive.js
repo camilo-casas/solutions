@@ -58,7 +58,7 @@ function drive(root, ctx, mode) {
   let seen = null; // what the windshield last showed: { trail, heading, pending }
   const head = el('div', { class: 'game-head' });
   const stage = el('div', { class: 'stage' });
-  const { el: mapEl, map } = mapPanel(ctx);
+  const { el: mapEl, map } = mapPanel(ctx, { labels: 'major' });
   const mapBox = el('div', { class: 'reveal hidden' }, mapEl);
   root.append(el('h1', { class: 'game-title' }, title), head, stage, mapBox);
 
