@@ -400,3 +400,25 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .pad-sub { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
 .drive-msg { background: var(--meh-bg); border: 1px solid var(--meh); border-radius: 10px; padding: 8px 12px; font-weight: 600; text-align: center; }
 @media (max-width: 420px) { .dash { grid-template-columns: 1fr; justify-items: stretch; } .dash-left { flex-direction: row; justify-content: center; gap: 12px; } }
+
+/* Windshield view */
+.windshield { position: relative; width: 100%; aspect-ratio: 16 / 10; max-height: 62vh; border-radius: var(--radius); overflow: hidden; background: #0d0b0a; box-shadow: 0 0 0 3px #14110f, 0 0 0 5px var(--gold); }
+.ws-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ws-chip { position: absolute; top: 14px; left: 30px; background: rgba(20, 17, 15, 0.78); color: #fff; border-radius: 8px; padding: 4px 10px; max-width: 55%; }
+.ws-chip small { display: block; font: 600 10px var(--font-body); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); }
+.ws-chip b { font: 700 clamp(14px, 3.6vw, 18px) var(--font-display); overflow-wrap: anywhere; }
+.ws-compass { position: absolute; top: 12px; right: 28px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+.ws-compass svg { width: clamp(48px, 11vw, 66px); height: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+.wsc-ring { fill: rgba(20, 17, 15, 0.85); stroke: var(--gold); stroke-width: 2.5; }
+.wsc-l { fill: #e9e2d8; font: 700 9px var(--font-display); text-anchor: middle; }
+.wsc-l.n { fill: var(--gold); }
+.wsc-n { fill: #e3283a; stroke: #fff; stroke-width: 0.6; }
+.wsc-s { fill: #6b625a; }
+.wsc-hub { fill: var(--gold); }
+.wsc-text { font: 700 12px var(--font-display); color: #fff; background: rgba(20, 17, 15, 0.78); border-radius: 4px; padding: 0 6px; margin-top: 2px; }
+.ws-odo { position: absolute; right: 14px; bottom: 10px; display: flex; align-items: center; gap: 6px; background: #14110f; border: 2px solid var(--gold); border-radius: 6px; padding: 4px 8px; color: #fff; }
+.ws-odo-label, .ws-odo-unit { font: 700 10px var(--font-body); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); }
+.ws-odo-digits { display: inline-flex; gap: 2px; font: 700 clamp(14px, 3.4vw, 18px) ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+.ws-odo-digits .dig { background: linear-gradient(#2b2724, #0b0908 50%, #2b2724); border-radius: 2px; padding: 0 3px; min-width: 1ch; text-align: center; }
+.ws-odo-digits .dot { color: var(--gold); }
+.trip-line { font: 500 13px var(--font-body); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }

@@ -9,6 +9,7 @@ import { distance, bearing, angleDiff, toCardinal, CARDINAL_NAMES } from '../lib
 import { shortName, nameKey } from '../lib/names.js';
 import { el, pick, onKeys, scoreBar, fmtTime } from '../ui.js';
 import { mapPanel } from '../map.js';
+import { Windshield } from '../windshield.js';
 import * as store from '../store.js';
 import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime } from './common.js';
 
@@ -40,6 +41,8 @@ function drive(root, ctx, mode) {
     onchange: (e) => { prefs.hospital = e.target.value; store.save(`${mode}:prefs`, prefs); start(); },
   }, el('option', { value: '' }, 'Random hospital'), reachable.map((h) => el('option', { value: h.name, selected: prefs.hospital === h.name }, h.name))) : null;
 
+  const ws = new Windshield(ctx, { vehicle: isT ? 'ambulance' : 'engine' });
+  let seen = null; // what the windshield last showed: { trail, heading, pending }
   const head = el('div', { class: 'game-head' });
   const stage = el('div', { class: 'stage' });
   const { el: mapEl, map } = mapPanel(ctx);
@@ -192,6 +195,7 @@ function drive(root, ctx, mode) {
     }
     if (addSegs(via)) return arrive();
     const segs = walkBlock(first, false);
+    g.lastMove = 'forward';
     g.moves++;
     g.pending = null;
     const last = segs[segs.length - 1];
@@ -209,6 +213,7 @@ function drive(root, ctx, mode) {
       .sort((a, b) => Math.abs(angleDiff(g.heading + 180, a.brg)) - Math.abs(angleDiff(g.heading + 180, b.brg)))[0];
     if (!first) return flash('No room to back up here.');
     const segs = walkBlock(first, true);
+    g.lastMove = 'back';
     g.moves++;
     g.pending = null;
     const last = segs[segs.length - 1];
@@ -223,6 +228,7 @@ function drive(root, ctx, mode) {
     if (g.done) return;
     const t = pickTurn(g.node, side) || nearTurn(side);
     if (!t) return flash(`No street to the ${side} here.`);
+    g.lastMove = 'forward';
     if (t.hop) {
       g.node = t.hop.to;
       if (addSegs([t.hop])) return arrive();
@@ -265,7 +271,9 @@ function drive(root, ctx, mode) {
         if (!best) continue;
         g = { node: s, start: s, target, heading: st.facing, street: st.street, startStreet: st.street, station: st, to: a, best, startFacing: st.facing };
       }
-      Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, moves: 0, done: false, t0: performance.now(), msg: '' });
+      Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, moves: 0, done: false, t0: performance.now(), msg: '', lastMove: 'forward' });
+      ws.reset({ node: g.node, heading: g.heading, street: g.street, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
+      seen = { trail: 1, heading: g.heading, pending: null };
       render();
       onKeys((e) => {
         const k = e.key;
@@ -290,24 +298,20 @@ function drive(root, ctx, mode) {
     msgTimer = setTimeout(() => { if (g) { g.msg = ''; render(); } }, 2200);
   }
 
-  function compass(heading) {
-    const ticks = ['N', 'E', 'S', 'W'].map((c, i) => {
-      const a = (i * 90 - 90) * (Math.PI / 180);
-      return `<text x="${60 + Math.cos(a) * 44}" y="${60 + Math.sin(a) * 44 + 5}" text-anchor="middle" class="cmp-l${c === 'N' ? ' n' : ''}">${c}</text>`;
-    }).join('');
-    const minor = [45, 135, 225, 315].map((d) => {
-      const a = (d - 90) * (Math.PI / 180);
-      return `<circle cx="${60 + Math.cos(a) * 44}" cy="${60 + Math.sin(a) * 44}" r="2" class="cmp-dot"/>`;
-    }).join('');
-    const svg = `<svg viewBox="0 0 120 120" role="img" aria-label="Heading ${CARDINAL_NAMES[toCardinal(heading)]}">
-      <circle cx="60" cy="60" r="56" class="cmp-ring"/>${ticks}${minor}
-      <g transform="rotate(${heading.toFixed(1)} 60 60)"><path d="M60 16 L69 62 L60 56 L51 62 Z" class="cmp-needle"/><path d="M60 104 L66 62 L60 66 L54 62 Z" class="cmp-tail"/></g>
-      <circle cx="60" cy="60" r="5" class="cmp-hub"/></svg>`;
-    return el('div', { class: 'compass', html: svg });
+  /** Animate the windshield from what it last showed to the current state. */
+  function syncView() {
+    if (!seen) return;
+    if (g.trail.length > seen.trail) {
+      ws.go({ kind: g.lastMove, pts: g.trail.slice(seen.trail - 1), heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
+    } else if (Math.abs(angleDiff(seen.heading, g.heading)) > 0.5 || seen.pending !== g.pending) {
+      ws.go({ kind: 'turn', heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
+    }
+    seen = { trail: g.trail.length, heading: g.heading, pending: g.pending };
   }
 
   function render() {
     if (!g || quiet) return;
+    syncView();
     stage.replaceChildren();
     const p = g.done ? null : preview();
     const cross = streetsAt(g.node).filter((n) => nameKey(n) !== nameKey(g.street));
@@ -325,14 +329,8 @@ function drive(root, ctx, mode) {
         el('div', { class: 'face-big addr' }, isT ? g.to.name : ctx.addressLabel(g.to)),
         isT ? el('small', { class: 'muted' }, g.to.city) : null,
         prefs.hints ? el('small', { class: 'hint' }, `Destination: ${gridNote(ctx, g.to.p)}. It's ${CARDINAL_NAMES[toCardinal(bearing(G.pt(g.node), g.to.p))]} of you, ${(distance(G.pt(g.node), g.to.p) / 1609.344).toFixed(1)} mi straight-line.`) : null),
-      el('div', { class: 'dash' },
-        el('div', { class: 'dash-left' },
-          compass(g.heading),
-          el('div', { class: 'heading-name' }, 'Heading ', el('b', {}, CARDINAL_NAMES[toCardinal(g.heading)]))),
-        el('div', { class: 'dash-right' },
-          el('div', { class: 'sign' }, el('small', {}, g.pending ? 'Turning onto' : 'On'), el('b', {}, g.street || 'unnamed road')),
-          cross.length ? el('div', { class: 'sign cross' }, el('small', {}, 'At'), el('b', {}, cross.slice(0, 3).join(' · '))) : null,
-          el('div', { class: 'trip' }, `${(g.dist / 1609.344).toFixed(2)} mi · ${g.moves} moves · ${fmtTime(elapsed)}`))),
+      ws.el,
+      el('div', { class: 'trip-line' }, `${g.moves} moves · ${fmtTime(elapsed)}`, cross.length ? ` · At ${cross.slice(0, 2).join(' & ')}` : ''),
       g.done ? null : el('div', { class: 'dpad' },
         pad('up', '▲', 'Forward', p.ahead ? p.ahead.name : 'no road', !!p.ahead, forward),
         pad('left', '◀', 'Left', p.left ? p.left.name : '—', !!p.left, () => turn('left')),
@@ -413,5 +411,5 @@ function drive(root, ctx, mode) {
   }
 
   start();
-  return { destroy: () => { clearTimeout(msgTimer); map.destroy(); } };
+  return { destroy: () => { clearTimeout(msgTimer); map.destroy(); ws.destroy(); } };
 }
