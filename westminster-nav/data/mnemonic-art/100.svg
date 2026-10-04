@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g transform="translate(256 360) scale(3.6)" stroke="#14110f" stroke-width="2.22" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-54 8 Q-54 -36 0 -36 Q54 -36 54 8 Q54 24 0 24 Q-54 24 -54 8 Z" fill="#e0a33a"/>
+<path d="M-50 9 Q0 18 50 9" fill="none" stroke-width="1.33"/>
+<path d="M-32 -18 Q-16 -28 4 -28" fill="none" stroke="#f6d27a" stroke-width="2.22"/>
+<g fill="#fff" stroke-width="0.67"><ellipse cx="-22" cy="-8" rx="6" ry="3.5" transform="rotate(-20 -22 -8)"/><ellipse cx="8" cy="-20" rx="6" ry="3.5" transform="rotate(15 8 -20)"/><ellipse cx="28" cy="-4" rx="6" ry="3.5" transform="rotate(30 28 -4)"/><ellipse cx="-2" cy="-2" rx="6" ry="3.5"/><ellipse cx="-36" cy="-2" rx="5" ry="3" transform="rotate(-40 -36 -2)"/></g></g>
+<g transform="translate(256 300) scale(1.35) translate(-256 -290)"><g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M150 300 Q150 250 250 250 Q350 250 362 300 Z" fill="#fff3d6" stroke-width="6"/>
+<g transform="rotate(-80 256 270)"><path d="M210 236 Q206 330 256 344 Q306 330 302 236 Z" fill="#b5733a"/>
+<path d="M200 240 Q200 196 256 194 Q312 196 312 240 Q256 254 200 240 Z" fill="#7a4b22"/>
+<path d="M222 206 l60 30 M218 226 l40 18 M244 200 l56 30" stroke-width="5"/>
+<path d="M256 194 q-4 -22 10 -30" stroke-width="10" fill="none"/></g>
+<path d="M232 276 q12 10 24 0 M232 304 q12 10 24 0" fill="none" stroke-width="6"/>
+<path d="M178 292 Q182 270 210 268 Q240 268 248 292" fill="none" stroke-width="0"/>
+</g>
+<path d="M150 300 Q256 340 362 300 L366 328 Q256 364 146 328 Z" fill="#e8b552" stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/></g>
+<circle cx="350" cy="190" r="12" fill="#fff" stroke="#14110f" stroke-width="6"/><circle cx="380" cy="150" r="17" fill="#fff" stroke="#14110f" stroke-width="6"/><circle cx="420" cy="100" r="24" fill="#fff" stroke="#14110f" stroke-width="6"/>
+</svg>

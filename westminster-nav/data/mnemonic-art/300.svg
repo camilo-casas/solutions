@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g transform="translate(220 230) scale(2.7)" stroke="#14110f" stroke-width="2.96" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-14 72 L-10 0 L10 0 L14 72 Z" fill="#8a5a2b"/>
+<circle cy="-34" r="54" fill="#3f9b3a"/>
+<circle cx="-42" cy="-4" r="34" fill="#4fb046"/><circle cx="42" cy="-6" r="36" fill="#4fb046"/>
+<circle cx="-14" cy="-56" r="11" fill="#6fd164" stroke="none"/><circle cx="20" cy="-38" r="8" fill="#6fd164" stroke="none"/></g>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M210 372 a16 16 0 1 1 22 0 l8 46 h-38 Z" fill="#14110f"/>
+<path d="M236 392 H350" stroke-width="30"/><path d="M236 392 H350" stroke="#f2b705" stroke-width="16"/>
+<path d="M300 400 v22 h14 v-22 M276 400 v16 h12 v-16" fill="#f2b705" stroke-width="6"/>
+<path d="M360 392 Q380 330 420 300 M360 392 Q420 360 452 340" fill="none" stroke="#2e7d32" stroke-width="18"/>
+<path d="M360 392 Q380 330 420 300 M360 392 Q420 360 452 340" fill="none" stroke="#14110f" stroke-width="4"/>
+<circle cx="404" cy="300" r="38" fill="#c1121f"/><circle cx="452" cy="356" r="38" fill="#c1121f"/>
+<circle cx="392" cy="288" r="9" fill="#ff8a8a" stroke="none"/><circle cx="440" cy="344" r="9" fill="#ff8a8a" stroke="none"/>
+<path d="M420 300 Q430 270 460 268 Q446 296 420 300 Z" fill="#4fb046" stroke-width="5"/>
+</g>
+<path d="M330 360 a20 20 0 0 1 20 -20 M330 430 a20 20 0 0 0 20 20" fill="none" stroke="#14110f" stroke-width="6" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 470 L250 150" stroke-width="22"/><path d="M60 470 L250 150" stroke="#8a5a2b" stroke-width="12"/>
+<path d="M232 180 L130 120 Q150 60 120 20 L330 70 Q300 120 330 190 Z" fill="#c1121f"/>
+<path d="M150 70 L306 108 M142 112 L300 150" stroke="#f2b705" stroke-width="14"/>
+<path d="M150 70 L306 108 M142 112 L300 150" fill="none" stroke-width="3"/>
+<path transform="translate(-30 60)" d="M300 300 l26 -30 l6 30 l34 -10 l-20 28 l30 18 l-36 4 l6 34 l-26 -22 l-22 26 l-2 -34 l-32 -2 l26 -20 Z" fill="#f2b705"/>
+<path d="M520 420 L410 436" fill="none" stroke="#14110f" stroke-width="52"/><path d="M520 420 L410 436" fill="none" stroke="#24324f" stroke-width="44"/>
+<path d="M412 410 Q350 404 336 428 Q334 452 360 454 L414 456 Z" fill="#f2c49b"/>
+<circle cx="342" cy="420" r="7" fill="#f2c49b" stroke-width="5"/><circle cx="348" cy="406" r="6" fill="#f2c49b" stroke-width="5"/>
+</g>
+<g transform="translate(380 210) scale(1.5) scale(-1 1) rotate(30)" stroke="#14110f" stroke-width="5.33" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-44 -52 L-6 -52 L-2 -12 Q34 -8 54 6 Q62 14 60 24 L-48 24 Q-50 -10 -44 -52 Z" fill="#c1121f"/>
+<path d="M28 0 Q52 6 60 24 L26 24 Q20 12 28 0 Z" fill="#fff"/>
+<path d="M-52 22 H62 Q66 40 52 40 H-46 Q-56 40 -52 22 Z" fill="#fff"/>
+<path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#14110f" stroke-width="9.07"/><path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#fff" stroke-width="4.27"/></g>
+<path d="M380 330 q10 -20 0 -40 M420 340 q20 -16 20 -40" fill="none" stroke="#14110f" stroke-width="7" stroke-linecap="round"/>
+</svg>
