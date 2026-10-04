@@ -4,7 +4,7 @@
 // horizon, a small compass and a trip odometer.
 
 import { makeProjection, bearing, angleDiff, toCardinal } from './lib/geo.js';
-import { shortName } from './lib/names.js';
+import { shortName, nameKey } from './lib/names.js';
 import { el } from './ui.js';
 
 const RAD = Math.PI / 180;
@@ -146,6 +146,7 @@ export class Windshield {
   }
 
   setStreet(street, turning) {
+    this.street = street;
     this.chip.replaceChildren(el('small', {}, turning ? 'Turning onto' : 'On'), el('b', {}, street || 'unnamed road'));
   }
 
@@ -447,15 +448,17 @@ export class Windshield {
     const poleW = Math.max(1, (F * 0.09) / z);
     g.fillStyle = '#8d9196';
     g.fillRect(bx - poleW / 2, ty, poleW, by - ty);
-    // The blade facing us names the cross street; the one along our road names ours.
+    // Only the cross street gets a blade: skip the road we're on, then take the
+    // name that runs most nearly across our heading.
+    const mine = nameKey(this.street || '');
     let cross = null;
-    let along = null;
     for (const [nm, brg] of sg.names) {
+      if (nameKey(nm) === mine) continue;
       const rel = Math.abs(angleDiff(h, brg)) % 180;
       const perp = Math.abs(90 - rel);
       if (!cross || perp < cross.perp) cross = { nm, brg, perp };
     }
-    for (const [nm] of sg.names) if (nm !== cross.nm) { along = nm; break; }
+    if (!cross) return;
     const px1 = (F * 1) / z; // pixels per meter at this depth
     const size = Math.max(4, Math.min(22, px1 * 0.42));
     if (size < 5) {
@@ -465,7 +468,6 @@ export class Windshield {
     }
     const block = this.blockNumber(sg, cross.brg);
     this.blade(g, tx, ty, size, cross.nm, '#0f6b3a', '#fff', block);
-    if (along) this.blade(g, tx, ty + size * 1.45, size * 0.8, along, '#0f6b3a', '#fff', this.blockNumber(sg, sg.names.get(along)));
   }
 
   /** Hundred block shown on a blade, like Westminster's signs (E-W streets show W numbers). */
