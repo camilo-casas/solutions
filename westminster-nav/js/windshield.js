@@ -82,14 +82,8 @@ export class Windshield {
     this.scene = ctx.scene;
     this.vehicle = vehicle;
     this.canvas = el('canvas', { class: 'ws-canvas', 'aria-label': 'Windshield view' });
-    this.needle = null;
-    this.compassEl = el('div', { class: 'ws-compass' });
-    this.compassEl.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29" class="wsc-ring"/>
-      <text x="32" y="15" class="wsc-l n">N</text><text x="52" y="36" class="wsc-l">E</text><text x="32" y="56" class="wsc-l">S</text><text x="12" y="36" class="wsc-l">W</text>
-      <g class="wsc-needle"><path d="M32 9 L37 33 L32 30 L27 33 Z" class="wsc-n"/><path d="M32 55 L36 33 L32 35 L28 33 Z" class="wsc-s"/></g><circle cx="32" cy="32" r="3" class="wsc-hub"/></svg>
-      <span class="wsc-text"></span>`;
-    this.needle = this.compassEl.querySelector('.wsc-needle');
-    this.compassText = this.compassEl.querySelector('.wsc-text');
+    // Heading readout, top center: just the cardinal direction.
+    this.compassEl = el('div', { class: 'ws-heading', 'aria-live': 'polite' });
     this.odoDigits = el('span', { class: 'ws-odo-digits' });
     this.odoEl = el('div', { class: 'ws-odo' }, el('span', { class: 'ws-odo-label' }, 'Trip'), this.odoDigits, el('span', { class: 'ws-odo-unit' }, 'mi'));
     this.chip = el('div', { class: 'ws-chip' });
@@ -336,7 +330,14 @@ export class Windshield {
       const py = sg.y - 7.5 * sn - 6 * cs;
       const c0 = cam(px, py);
       if (c0[2] < 3 || c0[2] > 320 || Math.abs(c0[0]) > c0[2] * 1.3) continue;
-      visSigns.push({ sg, px, py, z: c0[2] });
+      const cross = this.crossStreet(sg, h);
+      if (cross) visSigns.push({ sg, px, py, z: c0[2], cross });
+    }
+    // One blade per street: divided roads have two junction points close together.
+    visSigns.sort((a, b) => a.z - b.z);
+    for (let i = visSigns.length - 1; i > 0; i--) {
+      const v = visSigns[i];
+      if (visSigns.slice(0, i).some((u) => u.cross.nm === v.cross.nm && Math.hypot(u.sg.x - v.sg.x, u.sg.y - v.sg.y) < 90)) visSigns.splice(i, 1);
     }
     visSigns.sort((a, b) => b.z - a.z);
     for (const v of visSigns) this.paintSign(g, v, cam, scr, F, h);
@@ -344,8 +345,8 @@ export class Windshield {
     this.paintHood(g, W, H);
 
     // Overlays: compass and odometer.
-    this.needle.setAttribute('transform', `rotate(${h.toFixed(1)} 32 32)`);
-    this.compassText.textContent = toCardinal(h);
+    const dir = toCardinal(h);
+    if (this.compassEl.textContent !== dir) this.compassEl.textContent = dir;
     const miles = Math.max(0, this.shownDist / 1609.344);
     this.odoDigits.replaceChildren(...miles.toFixed(2).padStart(6, '0').split('').map((ch) => el('span', { class: ch === '.' ? 'dot' : 'dig' }, ch)));
   }
@@ -397,16 +398,8 @@ export class Windshield {
     g.fill();
   }
 
-  paintSign(g, { sg, px, py, z }, cam, scr, F, h) {
-    const base = cam(px, py, 0);
-    const top = cam(px, py, 3.6);
-    const [bx, by] = scr(base);
-    const [tx, ty] = scr(top);
-    const poleW = Math.max(1, (F * 0.09) / z);
-    g.fillStyle = '#8d9196';
-    g.fillRect(bx - poleW / 2, ty, poleW, by - ty);
-    // Only the cross street gets a blade: skip the road we're on, then take the
-    // name that runs most nearly across our heading.
+  /** The cross street a corner's blade names: not the road we're on, and the one most nearly across our heading. */
+  crossStreet(sg, h) {
     const mine = nameKey(this.street || '');
     let cross = null;
     for (const [nm, brg] of sg.names) {
@@ -415,7 +408,17 @@ export class Windshield {
       const perp = Math.abs(90 - rel);
       if (!cross || perp < cross.perp) cross = { nm, brg, perp };
     }
-    if (!cross) return;
+    return cross;
+  }
+
+  paintSign(g, { sg, px, py, z, cross }, cam, scr, F, h) {
+    const base = cam(px, py, 0);
+    const top = cam(px, py, 3.6);
+    const [bx, by] = scr(base);
+    const [tx, ty] = scr(top);
+    const poleW = Math.max(1, (F * 0.09) / z);
+    g.fillStyle = '#8d9196';
+    g.fillRect(bx - poleW / 2, ty, poleW, by - ty);
     const px1 = (F * 1) / z; // pixels per meter at this depth
     const size = Math.max(4, Math.min(22, px1 * 0.42));
     if (size < 5) {
