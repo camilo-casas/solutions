@@ -487,3 +487,16 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
   .windshield .edge-left { left: 4%; }
   .windshield .edge-right { right: 4%; }
 }
+/* Cross-town avenues: the run strip (west on the left, majors as ticks). */
+.strip { margin: 10px 0 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; align-self: stretch; width: 100%; max-width: 100%; min-width: 0; }
+.strip svg { display: block; width: 100%; min-width: 480px; height: auto; }
+.strip.compact svg { min-width: 480px; }
+.strip .tick { stroke: var(--border); stroke-width: 2; }
+.strip .tick.hot { stroke: var(--accent); stroke-width: 3; }
+.strip .tick-label { font: 600 17px var(--font-body); fill: var(--muted); }
+.strip .tick-label.hot { fill: var(--text); font-weight: 700; }
+.strip .run { fill: var(--accent); }
+.strip .piece { fill: var(--muted); opacity: 0.55; }
+.strip .dir { font: 700 15px var(--font-display); fill: var(--muted); letter-spacing: 0.08em; }
+.flashcard.ave { text-align: left; }
+.flashcard.ave .face-big, .flashcard.ave .face-block { text-align: center; }
