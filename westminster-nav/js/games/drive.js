@@ -383,6 +383,8 @@ function drive(root, ctx, mode) {
         el('button', { class: 'btn', onclick: giveUp }, 'Show me the route')),
       g.result || null,
     ].filter(Boolean));
+    // Call over (arrived or "Show me the route"): drop the windshield, enlarge the map.
+    views.classList.toggle('done', g.done);
     drawMap();
   }
 

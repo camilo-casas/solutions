@@ -401,6 +401,10 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
   .drive-map .map-wrap { flex: 1; min-height: 0; }
   .drive-map .map-canvas { height: 100%; }
 }
+.drive-views.done { grid-template-columns: 1fr; }
+.drive-views.done .windshield { display: none; }
+.drive-views.done .drive-map { height: auto; }
+.drive-views.done .map-canvas { height: min(72vh, 680px); }
 .edge-pads { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .edge-pad { position: absolute; pointer-events: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 52px; min-height: 46px; max-width: 30%; padding: 5px 10px; font: inherit; color: #fff; background: rgba(20, 17, 15, 0.36); border: 1.5px solid rgba(255, 255, 255, 0.55); border-radius: 12px; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); cursor: pointer; touch-action: manipulation; transition: background 0.12s, border-color 0.12s; }
 .edge-pad:hover:not(:disabled) { background: rgba(20, 17, 15, 0.55); border-color: var(--gold); }
