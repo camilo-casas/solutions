@@ -80,7 +80,7 @@ function drive(root, ctx, mode) {
     ` ${label}`);
   const renderHead = () => head.replaceChildren(...[
     el('div', { class: 'row' }, isT ? null : picker.el, toggle('hints', 'Hints')),
-    isT ? null : el('small', { class: 'muted' }, `Calls stay in the station's district: every address is within about ${DISTRICT_MI} miles of the station.`),
+    isT ? null : el('small', { class: 'muted' }, `Calls stay in the station's district: addresses come from anywhere within about ${DISTRICT_MI} miles of the station.`),
     isT ? hospToggles() : null,
     isT && hospitals.length > reachable.length
       ? el('small', { class: 'muted' }, `Not drivable yet (no connected streets in the map data): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
@@ -291,8 +291,10 @@ function drive(root, ctx, mode) {
       } else {
         const st = picker.get();
         const s = ctx.stationNode(st);
-        const a = addressAwayFrom(ctx, [st.lat, st.lon], 800, districtMi(st) * 1609.344);
+        // Anywhere in the district, from next door to its far edge.
+        const a = addressAwayFrom(ctx, [st.lat, st.lon], 0, districtMi(st) * 1609.344);
         const target = ctx.addressNode(a);
+        if (target === s) continue;
         const { opts } = G.departureOptions(s, st.facing, st.street, target);
         const best = [opts.left, opts.right].filter((o) => o && isFinite(o.cost)).sort((x, y) => x.cost - y.cost)[0];
         if (!best) continue;
