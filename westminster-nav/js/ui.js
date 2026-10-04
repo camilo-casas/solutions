@@ -65,3 +65,12 @@ export function scoreBar(s) {
     el('span', {}, 'streak ', el('b', {}, s.streak)),
     el('span', {}, 'best ', el('b', {}, s.best)));
 }
+
+// Let views pass optional children (`cond ? node : null`) to append and
+// replaceChildren without rendering the text "null".
+for (const name of ['append', 'replaceChildren']) {
+  const native = Element.prototype[name];
+  Element.prototype[name] = function patched(...kids) {
+    return native.apply(this, kids.filter((k) => k != null && k !== false));
+  };
+}

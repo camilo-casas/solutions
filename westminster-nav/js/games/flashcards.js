@@ -3,7 +3,7 @@
 
 import { ROTATIONS, STREETS, bracketWest, conflicts } from '../lib/rotations.js';
 import { ordinal } from '../lib/names.js';
-import { rule, hook, alsoNote, MAJOR_TIP, PEGS } from '../lib/mnemonics.js';
+import { rule, hooks, HOOK_KINDS, alsoNote, MAJOR_TIP, PEGS } from '../lib/mnemonics.js';
 import { el, shuffle, onKeys, scoreBar } from '../ui.js';
 import * as store from '../store.js';
 
@@ -13,6 +13,7 @@ const MODES = [
   { id: 'name2block', label: 'Name → Block', hint: 'What hundred block is this street?' },
   { id: 'block2name', label: 'Block → Name', hint: 'Which street sits on this block?' },
   { id: 'decode', label: 'Address → Cross streets', hint: 'Which two streets is this avenue address between?' },
+  { id: 'side', label: 'Street side', hint: 'Which side of the street is it on? Even = south or east, odd = north or west.' },
 ];
 const DECKS = [
   { id: 'major', label: 'Major streets', title: 'The 18 bold anchor streets' },
@@ -90,7 +91,8 @@ export function flashcards(root, ctx) {
     const prev = STREETS[i - 1];
     const next = STREETS[i + 1];
     return el('div', { class: 'memory' },
-      el('div', { class: 'hook' }, el('span', { class: 'mem-label' }, 'Memory hook'), hook(s)),
+      el('div', { class: 'hooks' }, hooks(s).map((h, k) => el('div', { class: `hook hook-${HOOK_KINDS[k].id}` },
+        el('span', { class: 'mem-label' }, HOOK_KINDS[k].label), h))),
       el('div', { class: 'rule' }, el('span', { class: 'mem-label' }, 'Letter math'), rule(s)),
       alsoNote(s) ? el('div', { class: 'also' }, el('span', { class: 'mem-label' }, 'Heads up'), alsoNote(s)) : null,
       ladder ? el('div', { class: 'ladder' },
@@ -158,7 +160,7 @@ export function flashcards(root, ctx) {
     const method = el('details', { class: 'panel method', open: !state.passed.length },
       el('summary', {}, 'How Learn mode works'),
       el('ol', {},
-        el('li', {}, el('b', {}, 'Read each card out loud'), ' and picture the memory hook for a few seconds. Vivid, silly images stick best.'),
+        el('li', {}, el('b', {}, 'Use all three hooks. '), 'Picture it (see the image for a few seconds; silly sticks best), Say it (read the rhyme out loud), and Link it (the story chains each street to the one before, so you can run the rotation in order). Different routes into memory make recall stronger; keep the one that clicks for you.'),
         el('li', {}, el('b', {}, 'Use the letter math. '), 'In rotations 1 to 3, block = rotation start + letter position × 100. Rotation 4 has two names per letter.'),
         el('li', {}, el('b', {}, 'Quiz right away. '), 'After 6 cards you\'re tested on them. Pulling an answer from memory builds it far faster than re-reading.'),
         el('li', {}, el('b', {}, 'Come back tomorrow. '), 'Name → Block practice brings back the cards you miss more often (spaced repetition).')),
@@ -288,6 +290,8 @@ export function flashcards(root, ctx) {
       return;
     }
 
+    if (prefs.mode === 'side') { streetSide(s); return; }
+
     // decode: "3650 W 88th Ave"
     const nextS = STREETS[STREETS.indexOf(s) + 1];
     if (!nextS) { ask(); return; }
@@ -309,6 +313,66 @@ export function flashcards(root, ctx) {
       choiceButtons(opts, opts.indexOf(correct), (ok, ms) => stage.append(result(ok, ms, s,
         el('p', {}, `${num} sits between ${s.name} (${s.block}) and ${nextS.name} (${nextS.block}).`)))),
     );
+  }
+
+  // Street side: South and East sides are even, North and West sides are odd.
+  function streetSide(s) {
+    const BLVD = new Set(['Federal', 'Lowell', 'Sheridan', 'Wadsworth']);
+    const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+    const ave = rnd(70, 149);
+    const nsStreet = Math.random() < 0.5;
+    let num;
+    let label;
+    if (nsStreet) {
+      num = ave * 100 + rnd(1, 98);
+      label = `${num} ${s.name} ${BLVD.has(s.name) ? 'Blvd' : 'St'}`;
+    } else {
+      const nextS = STREETS[STREETS.indexOf(s) + 1];
+      num = s.block + rnd(1, Math.max(2, (nextS ? nextS.block - s.block : 100) - 2));
+      label = `${num} W ${ordinal(ave)} Ave`;
+    }
+    const even = num % 2 === 0;
+    const truth = nsStreet ? (even ? 'E' : 'W') : (even ? 'S' : 'N');
+    const NAMES = { N: 'North', E: 'East', S: 'South', W: 'West' };
+    const t0 = performance.now();
+    let done = false;
+    const btns = {};
+    const answer = (c) => {
+      if (done) return;
+      done = true;
+      const ok = c === truth;
+      Object.entries(btns).forEach(([k, b]) => {
+        b.disabled = true;
+        if (k === truth) b.classList.add('right');
+        else if (k === c) b.classList.add('wrong');
+      });
+      const ms = performance.now() - t0;
+      const points = ok ? 10 + Math.max(0, Math.round(5 - ms / 1000)) : 0;
+      store.record('flashcards', ok ? 1 : 0, points, ms);
+      renderHead();
+      const where = nsStreet
+        ? `${s.name} runs north–south, so its sides are east and west. It's between ${ordinal(ave)} and ${ordinal(ave + 1)} Ave.`
+        : `W ${ordinal(ave)} Ave runs east–west, so its sides are north and south. It's on the ${s.name} block (${s.block}).`;
+      stage.append(el('div', { class: `verdict ${ok ? 'good' : 'bad'}` },
+        el('b', {}, ok ? `Correct: ${NAMES[truth]} side (+${points})` : `It's the ${NAMES[truth]} side`),
+        el('p', {}, `${num} is ${even ? 'even' : 'odd'}, and ${even ? 'even numbers are on the south and east sides' : 'odd numbers are on the north and west sides'}. ${where}`),
+        el('div', { class: 'memory' }, el('div', { class: 'hook' }, el('span', { class: 'mem-label' }, 'Remember'),
+          'Odd ones go up and left: North and West, like the top-left of a map. Evens settle down and right: South and East.')),
+        el('button', { class: 'btn primary', onclick: ask }, 'Next ↵')));
+    };
+    for (const c of ['N', 'E', 'S', 'W']) btns[c] = el('button', { class: 'rose-btn', onclick: () => answer(c) }, NAMES[c]);
+    stage.append(
+      el('div', { class: 'prompt' },
+        el('div', { class: 'face-big addr' }, label),
+        el('div', { class: 'face-sub' }, 'Which side of the street is it on?')),
+      el('div', { class: 'rose side-rose' },
+        el('div'), btns.N, el('div'),
+        btns.W, el('div', { class: 'rose-center', 'aria-hidden': 'true' }, '±'), btns.E,
+        el('div'), btns.S, el('div')));
+    onKeys((e) => {
+      const map = { ArrowUp: 'N', ArrowRight: 'E', ArrowDown: 'S', ArrowLeft: 'W' };
+      if (!done && map[e.key]) { e.preventDefault(); answer(map[e.key]); } else if ((e.key === 'Enter' || e.key === ' ') && done) { e.preventDefault(); ask(); }
+    });
   }
 
   renderHead();

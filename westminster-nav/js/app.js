@@ -7,7 +7,7 @@ import * as store from './store.js';
 import { flashcards } from './games/flashcards.js';
 import { turnSignal } from './games/turnSignal.js';
 import { cardinal } from './games/cardinal.js';
-import { router } from './games/router.js';
+import { responder, transporter } from './games/drive.js';
 import { setup } from './games/setup.js';
 import { splash, scores } from './games/players.js';
 import * as board from './scoreboard.js';
@@ -16,7 +16,8 @@ const GAMES = [
   { id: 'flashcards', name: 'Rotations', icon: '🗂️', blurb: 'Learn the 18 major streets, then all 132, with a memory hook for every street and number.', view: flashcards },
   { id: 'turn', name: 'Turn Signal', icon: '↔️', blurb: 'Station plus an address: do you turn left or right out of the bay?', view: turnSignal },
   { id: 'cardinal', name: 'Cardinal', icon: '🧭', blurb: 'From an address, which way is the hospital, station or landmark?', view: cardinal },
-  { id: 'router', name: 'Router', icon: '🚒', blurb: 'Give turn-by-turn directions from the station. We drive them and grade the route.', view: router },
+  { id: 'responder', name: 'Responder', icon: '🚒', blurb: 'Drive from the station to the address block by block with the arrow keys. Scored against the fastest route.', view: responder },
+  { id: 'transporter', name: 'Transporter', icon: '🚑', blurb: 'Patient loaded at a random address. Drive it to the hospital, block by block.', view: transporter },
 ];
 
 /** Shared context handed to every view. */

@@ -28,7 +28,7 @@ export function remove(key) {
 // Progress is kept per player. Anonymous play is tracked under "anon" and
 // never posted to the scoreboard.
 
-export const GAMES = ['flashcards', 'turn', 'cardinal', 'router'];
+export const GAMES = ['flashcards', 'turn', 'cardinal', 'responder', 'transporter'];
 
 /** { name } for a named player, { anon: true } for anonymous, or null before the splash screen. */
 export function player() {

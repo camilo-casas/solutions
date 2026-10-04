@@ -79,7 +79,7 @@ export function turnSignal(root, ctx) {
     const best = left.cost <= right.cost ? 'left' : 'right';
     const other = best === 'left' ? 'right' : 'left';
     const margin = (q.opts[other].cost - q.opts[best].cost) / q.opts[best].cost;
-    const close = margin < 0.05;
+    const close = margin < 0.005;
     const ok = side === best || close;
     const points = ok ? 10 + Math.max(0, Math.round(10 - ms / 1000)) : 0;
     store.record('turn', ok ? 1 : 0, points, ms);
@@ -88,7 +88,7 @@ export function turnSignal(root, ctx) {
     const steps = G.directions(q.opts[best].path, q.s.facing);
     stage.append(el('div', { class: `verdict ${ok ? 'good' : 'bad'}` },
       el('b', {}, ok ? `Correct: ${best.toUpperCase()} (+${points})` : `It's ${best.toUpperCase()}`),
-      close ? el('p', {}, 'Close call: both ways are within 5%, so either counts.') : null,
+      close ? el('p', {}, 'Dead heat: both ways are within 0.5%, so either counts.') : null,
       el('p', {}, `Left ${driveTime(left.cost)} · Right ${driveTime(right.cost)}. The address is ${dir} of the station, ${gridNote(ctx, q.a.p)}.`),
       directionsList(steps, ctx.addressLabel(q.a)),
       el('button', { class: 'btn primary', onclick: ask }, 'Next call ↵')));

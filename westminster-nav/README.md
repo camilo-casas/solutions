@@ -8,10 +8,11 @@ It's a static site: plain HTML, CSS and JavaScript modules, with no framework or
 
 | Game | What you do | How it's graded |
 | --- | --- | --- |
-| **Rotations** (flash cards) | Pick a deck: **Major streets** (the 18 bold anchors: Broadway, Huron, Pecos, Zuni, Federal, Lowell, Tennyson, Sheridan, Harlan, Pierce, Wadsworth, Carr, Garrison, Kipling, Oak, Simms, Welch, Alkire) or **All streets** (132, filterable by rotation). Modes: **Learn** (guided), Study, Name → Block, Block → Name, and Address → Cross streets (`5850 W 94th Ave` → Fenton & Gray). | Learn: 6 cards at a time, then a quiz you must pass (5 of 6) to unlock the next set. Practice modes use Leitner spaced repetition: cards you miss come back more often. |
-| **Turn Signal** | You get a station and an address. Pick **left** or **right** out of the bay. | The shortest drive-time route is computed both ways. If they're within 5%, either answer counts. |
+| **Rotations** (flash cards) | Pick a deck: **Major streets** (the 18 bold anchors: Broadway, Huron, Pecos, Zuni, Federal, Lowell, Tennyson, Sheridan, Harlan, Pierce, Wadsworth, Carr, Garrison, Kipling, Oak, Simms, Welch, Alkire) or **All streets** (132, filterable by rotation). Modes: **Learn** (guided), Study, Name → Block, Block → Name, Address → Cross streets (`5850 W 94th Ave` → Fenton & Gray), and **Street side** (`3789 W 127th Ave` → North: odd numbers are on the north and west sides, even on the south and east). | Learn: 6 cards at a time, then a quiz you must pass (5 of 6) to unlock the next set. Practice modes use Leitner spaced repetition: cards you miss come back more often. |
+| **Turn Signal** | You get a station and an address. Pick **left** or **right** out of the bay. | The shortest drive-time route is computed both ways. If they're within 0.5%, either answer counts. |
 | **Cardinal** | You get an address and one of the key hospitals (`data/landmarks.json`) or a WFD station. Pick N, NE, E, SE, S, SW, W or NW. "Everything on the map" adds other landmarks. | Straight-line bearing. A neighboring direction gets half credit. |
-| **Router** | Give turn-by-turn directions: left or right out of the bay, then "Right onto Sheridan Blvd", "Left onto W 92nd Ave", and so on. | The app drives your directions on the real street network and compares the result to the fastest route. |
+| **Responder** | Drive from the station to the address one block at a time: ↑ forward to the next intersection, ↓ back up a block, ← → turn onto the cross street (on-screen arrow buttons on phones). A compass shows your heading, and green street signs show where you are. Map and hints are optional. | Your drive time is compared with the fastest route, and the best route is drawn over your trail. |
+| **Transporter** | Same controls, but you start at a random scene address and drive the patient to a hospital (pick one or go random). | Same as Responder. |
 
 Turn Signal picks addresses so left and right come up about equally often, even at stations where most calls go one way.
 
@@ -22,7 +23,10 @@ Every answer shows a map with the correct route and explains the grid math (for 
 Every street has two aids, shown on every card back and on every wrong answer (`js/lib/mnemonics.js`):
 
 - **Letter math**, generated from the sheet. In rotations 1 to 3, block = rotation start + letter position × 100. For example, Lowell: L is the 12th letter and rotation 2 starts after Zuni (2400), so 2400 + 1200 = 3600. Rotation 4 has two names per letter (K pair = Kipling 10000, Kline 10100). The exceptions are explained on the card: skipped letters (no X or Y in rotation 1), doubled letters (Winona/Wolff, Webster/Wadsworth), the boundary streets (Sheridan, Alkire), the missing 12900, and Pierce, which is 6800 on the sheet but also runs on the 6600 line in some areas (`ALSO_AT` in `js/lib/rotations.js`).
-- **Memory hook**, a vivid image tying the name's sound to its number, either through a familiar number (Eaton 5700 has eaten all the Heinz 57; Newland 6600 is new land on Route 66) or through rhyming number pegs (0 hero, 1 bun, 2 shoe, 3 tree, 4 door, 5 hive, 6 sticks, 7 heaven, 8 gate, 9 vine).
+- **Three memory hooks**, each using a different technique, so whichever one clicks can carry the recall:
+  - *Picture it*: a vivid image tying the name's sound to its number, either through a familiar number (Eaton 5700 has eaten all the Heinz 57; Newland 6600 is new land on Route 66) or through rhyming number pegs (0 hero, 1 bun, 2 shoe, 3 tree, 4 door, 5 hive, 6 sticks, 7 heaven, 8 gate, 9 vine).
+  - *Say it*: a short rhyme with the number in it ("Fifty-seven hundred, Eaton: the ketchup's been eaten").
+  - *Link it*: a running story that chains each street to the one before ("Pour mead (Meade) down the low well (Lowell)"), so the whole rotation can be recited in order.
 
 Learn mode follows the evidence on memory: encode a small chunk with elaborate, vivid cues; test yourself on it right away (retrieval practice); then come back in spaced sessions. Edit any hook in `HOOKS` if your crew has a better one.
 
@@ -46,7 +50,7 @@ js/app.js             data loading and page routing
 js/lib/rotations.js   the rotation sheet (Broadway 0 → Alkire 13200)
 js/lib/mnemonics.js   memory hooks and letter-math rules for every street
 js/lib/grid.js        house number <-> coordinates (Denver grid)
-js/lib/graph.js       road graph, fastest routes, turn-by-turn, Router simulator
+js/lib/graph.js       road graph, fastest routes, turn-by-turn directions
 js/map.js             canvas map (no tiles, so street names stay hidden until you ask)
 js/games/*.js         the games, start screen, scoreboard and station setup
 js/scoreboard.js      shared (artifact database) or per-device scoreboard
@@ -72,7 +76,7 @@ Map data © OpenStreetMap contributors, ODbL.
 
 ## Stations
 
-`data/stations.json` holds each station's address, its position, the street the bay opens onto, and which way the apparatus faces when it pulls out. "Left" in Turn Signal and Router means left from the driver's seat as the truck leaves the bay.
+`data/stations.json` holds each station's address, its position, the street the bay opens onto, and which way the apparatus faces when it pulls out. "Left" in Turn Signal and Responder means left from the driver's seat as the truck leaves the bay.
 
 | Station | Address | Bay faces | Onto |
 | --- | --- | --- | --- |
@@ -86,6 +90,9 @@ Map data © OpenStreetMap contributors, ODbL.
 To adjust one, open **Station setup** (link at the bottom of the home page), tap the map, pick the street and facing, then **Export stations.json** and commit it.
 
 ## Hospitals
+
+Transporter can only drive to hospitals inside the downloaded street map: Avista, Good Samaritan, UCHealth Broomfield, St. Anthony North and the 84th Ave ER. Routing to Lutheran, St. Anthony (West), Denver Health, University of Colorado Hospital and Children's would need a wider map that includes I-25, US-36 and I-70.
+
 
 `data/landmarks.json` lists the hospitals used by Cardinal. Entries marked `"source": "approximate"` are outside the downloaded map area, and their coordinates were entered by hand: Lutheran, St. Anthony (West), Denver Health, University of Colorado Hospital and Children's Colorado. They're accurate to within a few blocks, which is plenty for an 8-point compass.
 

@@ -11,7 +11,8 @@ const GAME_TABS = [
   { id: 'flashcards', label: 'Rotations' },
   { id: 'turn', label: 'Turn Signal' },
   { id: 'cardinal', label: 'Cardinal' },
-  { id: 'router', label: 'Router' },
+  { id: 'responder', label: 'Responder' },
+  { id: 'transporter', label: 'Transporter' },
 ];
 
 export function splash(root, ctx, done) {
