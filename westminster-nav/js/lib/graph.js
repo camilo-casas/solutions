@@ -9,7 +9,7 @@ const SPEED = {
   motorway: 26, trunk: 20, primary: 18, secondary: 16, tertiary: 14,
   link: 13, unclassified: 11, residential: 11, service: 6,
 };
-export const ROUTABLE = new Set(['trunk', 'primary', 'secondary', 'tertiary', 'link', 'unclassified', 'residential']);
+export const ROUTABLE = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'link', 'unclassified', 'residential']);
 
 const LOOK = 30; // meters used to measure a road's heading at an intersection
 
@@ -119,7 +119,8 @@ export class RoadGraph {
    */
   snap(p, street = null) {
     let pool = this.edgesOn(street);
-    if (!pool.length) pool = this.edgesOn(null);
+    // With no street given (hospitals), never snap onto a freeway or ramp.
+    if (!pool.length || !street) pool = this.edgesOn(null).filter((e) => !['motorway', 'link'].includes(this.ways[e.way].cls));
     const k = Math.cos((p[0] * Math.PI) / 180);
     let best = null;
     for (const e of pool) {
@@ -246,7 +247,9 @@ export class RoadGraph {
         const oe = this.edges[o];
         if (via.length === 0 && oe.to === back) continue;
         if (oe.name) { res.push({ via, edge: o }); continue; }
-        if (seen.has(oe.to) || via.length >= 8 || len + oe.len > 400) continue;
+        // Freeway ramps can run well over a kilometer; other unnamed connectors are short.
+        const limit = this.ways[oe.way].cls === 'link' ? 2500 : 400;
+        if (seen.has(oe.to) || via.length >= 60 || len + oe.len > limit) continue;
         seen.add(oe.to);
         queue.push({ n: oe.to, via: [...via, o], len: len + oe.len });
       }

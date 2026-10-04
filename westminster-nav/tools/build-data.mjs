@@ -6,7 +6,7 @@
 //
 // Requires Node 18+ and no npm packages.
 
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STREETS, streetByName } from '../js/lib/rotations.js';
@@ -24,6 +24,10 @@ const OVERPASS = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 const SEARCH_BOX = [39.78, -105.20, 40.02, -104.95]; // S, W, N, E around Westminster
+// Wider metro area for transports: freeways and main roads only, plus every
+// street near each hospital in data/landmarks.json.
+const REGION_BOX = [39.69, -105.23, 40.01, -104.80];
+const HOSPITAL_RADIUS = 1200; // meters of full street detail around each hospital
 const MAX_ADDRESSES = 6000;
 
 const round = (x) => Math.round(x * 1e5) / 1e5;
@@ -84,6 +88,12 @@ function stitchRings(segments) {
     if (ring.length > 3) rings.push(ring);
   }
   return rings;
+}
+
+/** "I 25;US 87" -> "I-25" */
+function refName(ref) {
+  if (!ref) return '';
+  return ref.split(';')[0].trim().replace(/^(I|US|SH|CO)\s+(\d+)/, '$1-$2');
 }
 
 function roadClass(hw) {
@@ -256,9 +266,22 @@ async function buildFromOSM() {
   const pad = 0.012;
   const bb = [Math.min(...lats) - pad, Math.min(...lons) - pad, Math.max(...lats) + pad, Math.max(...lons) + pad].map((x) => x.toFixed(5)).join(',');
 
-  const roads = await overpass(`[out:json][timeout:300];
-    way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|residential|unclassified|living_street)$"](${bb});
+  const ALL_ROADS = 'motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|residential|unclassified|living_street';
+  const cityRoads = await overpass(`[out:json][timeout:300];
+    way["highway"~"^(${ALL_ROADS})$"](${bb});
     out geom;`, 'roads');
+  const landmarks = JSON.parse(await readFile(join(here, '..', 'data', 'landmarks.json'), 'utf8'));
+  const around = landmarks.map((l) => `way["highway"~"^(${ALL_ROADS})$"](around:${HOSPITAL_RADIUS},${l.lat},${l.lon});`).join('\n      ');
+  const regionRoads = await overpass(`[out:json][timeout:300];
+    (
+      way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link)$"](${REGION_BOX.join(',')});
+      ${around}
+    );
+    out geom;`, 'metro freeways and hospital streets');
+  const byId = new Map();
+  for (const w of [...cityRoads, ...regionRoads]) if (w.type === 'way' && w.geometry) byId.set(w.id, w);
+  const roads = [...byId.values()];
+  const cityIds = new Set(cityRoads.map((w) => w.id));
   const addrEls = await overpass(`[out:json][timeout:300];
     nwr["addr:housenumber"]["addr:street"](${bb});
     out center tags;`, 'addresses');
@@ -266,6 +289,7 @@ async function buildFromOSM() {
     (
       nwr["amenity"~"^(hospital|fire_station|police|townhall|library|college)$"](${bb});
       nwr["healthcare"="hospital"](${bb});
+      nwr["amenity"="hospital"](${REGION_BOX.join(',')});
       nwr["shop"="mall"](${bb});
       nwr["leisure"~"^(stadium|golf_course)$"]["name"](${bb});
       nwr["tourism"~"^(attraction|museum|zoo)$"]["name"](${bb});
@@ -297,7 +321,9 @@ async function buildFromOSM() {
     let len = 0;
     for (let i = 1; i < pts.length; i++) len += distance(pts[i - 1], pts[i]);
     return {
-      name: w.tags.name || w.tags.ref || '',
+      // Crews say "I-25" and "US-36", not "Valley Highway".
+      name: (w.tags.highway === 'motorway' && refName(w.tags.ref)) || w.tags.name || refName(w.tags.ref) || '',
+      inCity: cityIds.has(w.id),
       cls: roadClass(w.tags.highway),
       oneway: onewayOf(w.tags),
       nodes: ids.map(idx),
@@ -306,7 +332,8 @@ async function buildFromOSM() {
     };
   });
 
-  const grid = calibrate(ways);
+  const cityWays = ways.filter((w) => w.inCity);
+  const grid = calibrate(cityWays);
   const g = makeGrid(grid);
 
   // Real addresses inside the city on streets we have.
@@ -335,7 +362,7 @@ async function buildFromOSM() {
     }
     addresses = addresses.slice(0, MAX_ADDRESSES);
   }
-  if (addresses.length < 2000) addresses.push(...synthAddresses(ways, rings, g, 2500 - addresses.length, rand));
+  if (addresses.length < 2000) addresses.push(...synthAddresses(cityWays, rings, g, 2500 - addresses.length, rand));
 
   const typeOf = (t) => {
     if (t.amenity === 'hospital' || t.healthcare === 'hospital') return 'hospital';
@@ -354,6 +381,12 @@ async function buildFromOSM() {
     if (lat == null || !name || poiSeen.has(name)) continue;
     poiSeen.add(name);
     pois.push({ name, type: typeOf(el.tags), lat, lon });
+  }
+
+  // Report the OpenStreetMap hospital nearest each landmark, to check its coordinates.
+  for (const l of landmarks) {
+    const near = pois.filter((p) => p.type === 'hospital').map((p) => ({ ...p, d: distance([l.lat, l.lon], [p.lat, p.lon]) })).sort((a, b) => a.d - b.d)[0];
+    if (near) process.stderr.write(`landmark ${l.name}: nearest OSM hospital "${near.name}" ${Math.round(near.d)} m away at ${near.lat.toFixed(5)}, ${near.lon.toFixed(5)}\n`);
   }
 
   return pack({

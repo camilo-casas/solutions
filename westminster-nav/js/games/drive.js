@@ -27,7 +27,7 @@ function drive(root, ctx, mode) {
   // Hospitals the street data reaches (others are outside the downloaded map).
   const hospitals = ctx.landmarks.filter((h) => h.type === 'hospital').map((h) => {
     const n = G.nearestNode([h.lat, h.lon]);
-    return { ...h, p: [h.lat, h.lon], reach: distance([h.lat, h.lon], G.pt(n)) < 400 };
+    return { ...h, p: [h.lat, h.lon], reach: n >= 0 && distance([h.lat, h.lon], G.pt(n)) < 400 };
   });
   const reachable = hospitals.filter((h) => h.reach);
 
@@ -64,7 +64,11 @@ function drive(root, ctx, mode) {
     for (const e of G.inc[n]) if (G.edges[e].name) seen.add(G.edges[e].from);
     return seen.size;
   }
-  const isStop = (n) => n === g.target || n === g.start || namedDegree(n) >= 3 || namedDegree(n) <= 1;
+  // On freeways a "block" runs to the next exit ramp; elsewhere to the next intersection.
+  const FAST = new Set(['motorway', 'trunk']);
+  const hasExit = (n) => G.out[n].some((e) => !G.edges[e].name && G.ways[G.edges[e].way].cls === 'link');
+  const isStop = (n, cls) => n === g.target || n === g.start || namedDegree(n) >= 3 || namedDegree(n) <= 1
+    || (FAST.has(cls) && hasExit(n));
 
   /** Road segments leaving n: forward edges, plus reversed incoming edges when backing up. */
   function segmentsFrom(n, reverse) {
@@ -78,15 +82,20 @@ function drive(root, ctx, mode) {
     return segs.map((s) => ({ ...s, brg: bearing(G.pt(s.from), G.pt(s.to)) }));
   }
 
+  const aheadScore = (x) => Math.abs(angleDiff(g.heading, x.brg)) - (nameKey(x.name) === nameKey(g.street) ? 10 : 0) + (!x.name ? 40 : 0);
+
   /** Walk from `first` (a segment) to the next intersection. Returns the segments walked. */
   function walkBlock(first, reverse) {
     const segs = [first];
     let cur = first;
     let guard = 0;
-    while (!isStop(cur.to) && guard++ < 400) {
+    while (!isStop(cur.to, G.ways[cur.way].cls) && guard++ < 2000) {
       const opts = segmentsFrom(cur.to, reverse).filter((s) => s.to !== cur.from);
       if (!opts.length) break;
-      opts.sort((a, b) => (Math.abs(angleDiff(cur.brg, a.brg)) - (a.way === cur.way ? 10 : 0)) - (Math.abs(angleDiff(cur.brg, b.brg)) - (b.way === cur.way ? 10 : 0)));
+      // Straightest wins, but stay on the same road: a ramp peeling off at a shallow angle is not "ahead".
+      const score = (x) => Math.abs(angleDiff(cur.brg, x.brg)) - (x.way === cur.way ? 10 : 0) + (cur.name && !x.name ? 40 : 0)
+        - (cur.name && nameKey(x.name) === nameKey(cur.name) ? 10 : 0);
+      opts.sort((a, b) => score(a) - score(b));
       if (Math.abs(angleDiff(cur.brg, opts[0].brg)) > 100) break;
       cur = opts[0];
       segs.push(cur);
@@ -119,7 +128,7 @@ function drive(root, ctx, mode) {
       ? { name: g.pending.name }
       : (() => {
         const s = segmentsFrom(n, false).filter((x) => Math.abs(angleDiff(g.heading, x.brg)) <= LOOK)
-          .sort((a, b) => Math.abs(angleDiff(g.heading, a.brg)) - Math.abs(angleDiff(g.heading, b.brg)))[0];
+          .sort((a, b) => aheadScore(a) - aheadScore(b))[0];
         return s ? { name: shortName(s.name) || 'unnamed road' } : null;
       })();
     const back = segmentsFrom(n, true).some((x) => Math.abs(angleDiff(g.heading + 180, x.brg)) <= LOOK);
@@ -164,7 +173,7 @@ function drive(root, ctx, mode) {
       first = { id: e.id, from: e.from, to: e.to, way: e.way, name: e.name, len: e.len, cost: e.cost, brg: bearing(G.pt(e.from), G.pt(e.to)) };
     } else {
       first = segmentsFrom(g.node, false).filter((s) => Math.abs(angleDiff(g.heading, s.brg)) <= LOOK)
-        .sort((a, b) => (Math.abs(angleDiff(g.heading, a.brg)) - (nameKey(a.name) === nameKey(g.street) ? 10 : 0)) - (Math.abs(angleDiff(g.heading, b.brg)) - (nameKey(b.name) === nameKey(g.street) ? 10 : 0)))[0];
+        .sort((a, b) => aheadScore(a) - aheadScore(b))[0];
       if (!first) return flash(g.node === g.start && !g.moves ? `You're in the bay. Turn left or right onto ${g.startStreet}.` : 'No road straight ahead. Turn left or right.');
     }
     if (addSegs(via)) return arrive();
