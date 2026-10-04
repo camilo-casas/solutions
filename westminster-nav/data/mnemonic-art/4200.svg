@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g transform="rotate(-25 80 330)"><g transform="translate(80 330) scale(1.2)" stroke="#14110f" stroke-width="6.67" stroke-linejoin="round" stroke-linecap="round"><rect x="-46" y="-86" width="92" height="172" fill="#5c3a1c"/><rect x="-36" y="-76" width="72" height="162" fill="#a0672f"/>
+<rect x="-24" y="-64" width="48" height="56" rx="4" fill="#8a5a2b" stroke-width="4"/><rect x="-24" y="8" width="48" height="64" rx="4" fill="#8a5a2b" stroke-width="4"/>
+<circle cx="24" cy="0" r="8" fill="#f2b705"/></g></g>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M120 420 L130 340 Q140 310 190 300 L230 250 Q240 240 260 240 H340 Q360 240 372 260 L400 300 Q450 304 456 340 L462 420 Z" fill="#2a6fdb"/>
+<path d="M244 300 L262 262 H300 V300 Z M316 300 V262 H350 L372 300 Z" fill="#bfe3ff" stroke-width="6"/>
+<path d="M130 360 H460" stroke="#fff" stroke-width="18"/><path d="M130 360 H460" fill="none" stroke-width="0"/>
+<circle cx="290" cy="380" r="22" fill="#fff" stroke-width="6"/>
+<path d="M440 330 h18 v20 h-18 Z" fill="#f2b705" stroke-width="5"/>
+<circle cx="190" cy="430" r="40" fill="#3c3c44"/><circle cx="190" cy="430" r="16" fill="#c9ced6"/>
+<circle cx="390" cy="430" r="40" fill="#3c3c44"/><circle cx="390" cy="430" r="16" fill="#c9ced6"/>
+<path d="M60 230 l20 20 M30 290 l30 0 M70 440 l-30 10 M140 210 l-6 30" fill="none"/>
+</g>
+<g transform="translate(440 150) scale(1.05) rotate(25)" stroke="#14110f" stroke-width="7.62" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-44 -52 L-6 -52 L-2 -12 Q34 -8 54 6 Q62 14 60 24 L-48 24 Q-50 -10 -44 -52 Z" fill="#c1121f"/>
+<path d="M28 0 Q52 6 60 24 L26 24 Q20 12 28 0 Z" fill="#fff"/>
+<path d="M-52 22 H62 Q66 40 52 40 H-46 Q-56 40 -52 22 Z" fill="#fff"/>
+<path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#14110f" stroke-width="12.96"/><path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#fff" stroke-width="6.1"/></g>
+<path d="M380 230 q20 -20 26 -50 M120 480 h60 M260 480 h60" fill="none" stroke="#14110f" stroke-width="7" stroke-linecap="round"/>
+</svg>

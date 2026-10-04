@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fb4c7"/><stop offset="1" stop-color="#e7ecef"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 130 Q40 80 90 70 Q110 20 170 40 Q210 0 260 30 Q320 10 340 60 Q400 50 410 100 Q450 120 420 150 H70 Q40 150 60 130 Z" fill="#7d8a96"/>
+</g>
+<g transform="translate(170 340) scale(1.4)" stroke="#14110f" stroke-width="5.71" stroke-linejoin="round" stroke-linecap="round"><rect x="-46" y="-86" width="92" height="172" fill="#5c3a1c"/><rect x="-36" y="-76" width="72" height="162" fill="#2a1a0c"/><path d="M-36 -76 L-6 -90 L-6 100 L-36 86 Z" fill="#a0672f"/><circle cx="-14" cy="6" r="6" fill="#f2b705"/></g>
+<g transform="translate(380 410) scale(1.15) rotate(10)" stroke="#14110f" stroke-width="6.96" stroke-linejoin="round" stroke-linecap="round"><path d="M-24 48 L-40 -46 M-12 50 L-18 -52 M0 50 L2 -54 M12 50 L20 -50 M24 48 L40 -44" fill="none" stroke="#14110f" stroke-width="17.96"/><path d="M-24 48 L-40 -46 M-12 50 L-18 -52 M0 50 L2 -54 M12 50 L20 -50 M24 48 L40 -44" fill="none" stroke="#d9a066" stroke-width="11"/>
+<path d="M-31 2 Q0 12 31 2" fill="none" stroke="#14110f" stroke-width="14.96"/><path d="M-31 2 Q0 12 31 2" fill="none" stroke="#c1121f" stroke-width="8"/><path d="M2 8 q-10 12 -18 10 M2 8 q10 12 18 12" fill="none" stroke="#14110f" stroke-width="11.96"/><path d="M2 8 q-10 12 -18 10 M2 8 q10 12 18 12" fill="none" stroke="#c1121f" stroke-width="5"/></g>
+<g stroke="#2a6fdb" stroke-width="7" stroke-linecap="round">
+<path d="M100 180 l-8 24"/><path d="M150 200 l-8 24"/><path d="M190 170 l-8 24"/><path d="M240 190 l-8 24"/><path d="M290 170 l-8 24"/><path d="M340 200 l-8 24"/><path d="M380 170 l-8 24"/><path d="M420 210 l-8 24"/><path d="M330 260 l-8 24"/><path d="M400 280 l-8 24"/><path d="M440 320 l-8 24"/><path d="M300 330 l-8 24"/>
+</g>
+<g stroke="#14110f" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"><path d="M330 470 q20 -16 40 0 M400 470 q20 -16 40 0" fill="none" stroke="#2a6fdb"/></g>
+</svg>
