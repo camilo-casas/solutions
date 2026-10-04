@@ -106,9 +106,22 @@ function drive(root, ctx, mode) {
     for (const e of G.inc[n]) seen.add(G.edges[e].from);
     return seen.size;
   }
-  // A "block" ends wherever three or more segments meet: an intersection, a side
-  // street joined by an unnamed connector, or a freeway exit or entrance.
-  const isStop = (n) => n === g.target || n === g.start || degree(n) >= 3 || namedDegree(n) <= 1;
+  // A "block" ends at an intersection: a side street (even one joined by an
+  // unnamed connector) or a freeway exit. Driving forward, only a real choice
+  // stops the truck, so it rolls through the spots where a divided road splits
+  // into two one-way roadways or joins back up, and past on-ramps merging in.
+  // Backing up (no `cur`) stops wherever three or more segments meet.
+  const isStop = (n, cur = null) => {
+    if (n === g.target || n === g.start || namedDegree(n) <= 1) return true;
+    if (!cur) return degree(n) >= 3;
+    // Not counting a U-turn back down the other roadway of the same street.
+    const ahead = new Set(G.out[n].filter((e) => {
+      const x = G.edges[e];
+      if (x.to === cur.from) return false;
+      return !(x.key === G.edges[cur.id]?.key && Math.abs(angleDiff(cur.brg, bearing(G.pt(n), G.pt(x.to)))) > 135);
+    }).map((e) => G.edges[e].to));
+    return ahead.size !== 1;
+  };
 
   /** Road segments leaving n: forward edges, plus reversed incoming edges when backing up. */
   function segmentsFrom(n, reverse) {
@@ -129,7 +142,7 @@ function drive(root, ctx, mode) {
     const segs = [first];
     let cur = first;
     let guard = 0;
-    while (!isStop(cur.to) && guard++ < 2000) {
+    while (!isStop(cur.to, reverse ? null : cur) && guard++ < 2000) {
       const opts = segmentsFrom(cur.to, reverse).filter((s) => s.to !== cur.from);
       if (!opts.length) break;
       // Straightest wins, but stay on the same road: a ramp peeling off at a shallow angle is not "ahead".
@@ -217,12 +230,33 @@ function drive(root, ctx, mode) {
       const e = G.edges[g.pending.edge];
       first = { id: e.id, from: e.from, to: e.to, way: e.way, name: e.name, len: e.len, cost: e.cost, brg: bearing(G.pt(e.from), G.pt(e.to)) };
     } else {
-      first = segmentsFrom(g.node, false).filter((s) => Math.abs(angleDiff(g.heading, s.brg)) <= LOOK)
-        .sort((a, b) => aheadScore(a) - aheadScore(b))[0];
+      const outs = segmentsFrom(g.node, false);
+      first = outs.filter((s) => Math.abs(angleDiff(g.heading, s.brg)) <= LOOK).sort((a, b) => aheadScore(a) - aheadScore(b))[0]
+        // Where a divided road splits, its own roadway can veer off at a sharper angle: still "straight on".
+        || outs.filter((s) => nameKey(s.name) === nameKey(g.street) && Math.abs(angleDiff(g.heading, s.brg)) <= 70).sort((a, b) => aheadScore(a) - aheadScore(b))[0];
       if (!first) return flash(g.node === g.start && !g.moves ? `You're in the bay. Turn left or right onto ${g.startStreet}.` : 'No road straight ahead. Turn left or right.');
     }
     if (addSegs(via)) return arrive();
-    const segs = walkBlock(first, false);
+    let segs = walkBlock(first, false);
+    // A divided cross street is one intersection with two roadways: clear both
+    // in one move. (Turns onto the far roadway are offered from the near one.)
+    let from = g.node;
+    for (let k = 0; k < 2; k++) {
+      const last = segs[segs.length - 1];
+      const n = last.to;
+      if (n === g.target) break;
+      const start = segs.findIndex((x) => x.from === from);
+      const len = segs.slice(start).reduce((t, x) => t + x.len, 0);
+      const mine = nameKey(last.name || g.street);
+      const crossAt = (m) => streetsAt(m).filter((x) => nameKey(x) !== mine);
+      const shared = crossAt(from).filter((x) => crossAt(n).includes(x));
+      if (len > 45 || !shared.length) break;
+      const nxt = segmentsFrom(n, false).filter((x) => x.to !== last.from && Math.abs(angleDiff(last.brg, x.brg)) <= LOOK)
+        .sort((a, b) => Math.abs(angleDiff(last.brg, a.brg)) - Math.abs(angleDiff(last.brg, b.brg)) - (nameKey(a.name) === mine ? 10 : 0) + (nameKey(b.name) === mine ? 10 : 0))[0];
+      if (!nxt) break;
+      from = n;
+      segs = segs.concat(walkBlock(nxt, false));
+    }
     g.lastMove = 'forward';
     g.moves++;
     g.pending = null;
