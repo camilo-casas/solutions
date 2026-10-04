@@ -3,7 +3,8 @@
 
 import { ROTATIONS, STREETS, bracketWest, conflicts } from '../lib/rotations.js';
 import { ordinal } from '../lib/names.js';
-import { rule, hooks, HOOK_KINDS, alsoNote, MAJOR_TIP, PEGS } from '../lib/mnemonics.js';
+import { rule, mnemonic, alsoNote, MAJOR_TIP, PEGS, PEG_ART } from '../lib/mnemonics.js';
+import { openPoster } from '../mnemonicArt.js';
 import { el, shuffle, onKeys, scoreBar } from '../ui.js';
 import * as store from '../store.js';
 
@@ -91,8 +92,20 @@ export function flashcards(root, ctx) {
     const prev = STREETS[i - 1];
     const next = STREETS[i + 1];
     return el('div', { class: 'memory' },
-      el('div', { class: 'hooks' }, hooks(s).map((h, k) => el('div', { class: `hook hook-${HOOK_KINDS[k].id}` },
-        el('span', { class: 'mem-label' }, HOOK_KINDS[k].label), h))),
+      (() => {
+        const m = mnemonic(s);
+        if (!m) return null;
+        // Tap the mnemonic to open its picture.
+        return el('button', {
+          type: 'button', class: 'hook hook-btn', 'aria-label': `Open the picture for ${s.name}: ${m.text}`,
+          onclick: (e) => { e.stopPropagation(); openPoster(s); },
+        },
+        el('span', { class: 'hook-art', 'aria-hidden': 'true' }, m.art),
+        el('span', { class: 'hook-body' },
+          el('span', { class: 'mem-label' }, 'Mnemonic · tap for picture'),
+          m.text,
+          el('span', { class: 'hook-pegs' }, m.pegs.map((p) => `${p.art} ${p.digit}`).join('  '))));
+      })(),
       el('div', { class: 'rule' }, el('span', { class: 'mem-label' }, 'Letter math'), rule(s)),
       alsoNote(s) ? el('div', { class: 'also' }, el('span', { class: 'mem-label' }, 'Heads up'), alsoNote(s)) : null,
       ladder ? el('div', { class: 'ladder' },
@@ -160,12 +173,12 @@ export function flashcards(root, ctx) {
     const method = el('details', { class: 'panel method', open: !state.passed.length },
       el('summary', {}, 'How Learn mode works'),
       el('ol', {},
-        el('li', {}, el('b', {}, 'Use all three hooks. '), 'Picture it (see the image for a few seconds; silly sticks best), Say it (read the rhyme out loud), and Link it (the story chains each street to the one before, so you can run the rotation in order). Different routes into memory make recall stronger; keep the one that clicks for you.'),
+        el('li', {}, el('b', {}, 'Picture the mnemonic. '), 'The street name becomes a keyword you can see (Lowell is a low well), and the number is spelled with pegs (3 = tree, 6 = sticks). Tap the mnemonic to open its picture and hold the scene in your mind for a few seconds. Odd, vivid and moving images stick best.'),
         el('li', {}, el('b', {}, 'Use the letter math. '), 'In rotations 1 to 3, block = rotation start + letter position × 100. Rotation 4 has two names per letter.'),
         el('li', {}, el('b', {}, 'Quiz right away. '), 'After 6 cards you\'re tested on them. Pulling an answer from memory builds it far faster than re-reading.'),
         el('li', {}, el('b', {}, 'Come back tomorrow. '), 'Name → Block practice brings back the cards you miss more often (spaced repetition).')),
       prefs.deck === 'major' ? el('p', { class: 'tip' }, MAJOR_TIP) : null,
-      el('p', { class: 'muted small' }, 'Number pegs used in some hooks: ', PEGS.map((p, i) => `${i} = ${p}`).join(', '), '.'));
+      el('p', { class: 'peg-key' }, el('b', {}, 'Number pegs: '), PEGS.map((p, i) => `${i} ${PEG_ART[i]} ${p}`).join(' · ')));
 
     const chunkChips = el('div', { class: 'chips chunk-chips' });
     const renderChips = () => chunkChips.replaceChildren(...chunks.map((c, i) => el('button', {
