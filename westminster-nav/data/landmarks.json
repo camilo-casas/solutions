@@ -4,6 +4,7 @@
   {"name": "UCHealth Broomfield Hospital", "city": "Broomfield", "type": "hospital", "lat": 39.91051, "lon": -105.09145, "source": "osm"},
   {"name": "St. Anthony North Hospital", "city": "Westminster", "type": "hospital", "lat": 39.95574, "lon": -104.99132, "source": "osm"},
   {"name": "84th Ave ER (St. Anthony)", "city": "Westminster", "type": "hospital", "lat": 39.85078, "lon": -105.01845, "source": "osm"},
+  {"name": "HCA HealthONE Mountain Ridge", "city": "Thornton", "type": "hospital", "lat": 39.8646, "lon": -104.98503, "source": "osm"},
   {"name": "Lutheran Hospital", "city": "Golden", "type": "hospital", "lat": 39.77089, "lon": -105.1461, "source": "osm"},
   {"name": "St. Anthony Hospital (West)", "city": "Lakewood", "type": "hospital", "lat": 39.71446, "lon": -105.12921, "source": "osm"},
   {"name": "Denver Health Medical Center", "city": "Denver", "type": "hospital", "lat": 39.72762, "lon": -104.99087, "source": "osm"},
