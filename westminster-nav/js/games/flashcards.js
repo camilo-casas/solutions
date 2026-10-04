@@ -4,7 +4,7 @@
 import { ROTATIONS, STREETS, bracketWest, conflicts } from '../lib/rotations.js';
 import { ordinal } from '../lib/names.js';
 import { rule, mnemonic, alsoNote, MAJOR_TIP, PEGS, PEG_ART } from '../lib/mnemonics.js';
-import { openPoster } from '../mnemonicArt.js';
+import { openPoster, artURI } from '../mnemonicArt.js';
 import { el, shuffle, onKeys, scoreBar } from '../ui.js';
 import * as store from '../store.js';
 
@@ -100,7 +100,9 @@ export function flashcards(root, ctx) {
           type: 'button', class: 'hook hook-btn', 'aria-label': `Open the picture for ${s.name}: ${m.text}`,
           onclick: (e) => { e.stopPropagation(); openPoster(s); },
         },
-        el('span', { class: 'hook-art', 'aria-hidden': 'true' }, m.art),
+        artURI(s.block)
+          ? el('img', { class: 'hook-img', src: artURI(s.block), alt: '', width: 56, height: 56 })
+          : el('span', { class: 'hook-art', 'aria-hidden': 'true' }, m.art),
         el('span', { class: 'hook-body' },
           el('span', { class: 'mem-label' }, 'Mnemonic · tap for picture'),
           m.text,

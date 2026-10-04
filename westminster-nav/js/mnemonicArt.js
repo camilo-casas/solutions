@@ -4,6 +4,10 @@
 
 import { el } from './ui.js';
 import { mnemonic } from './lib/mnemonics.js';
+import { ART } from './lib/mnemonicArtData.js';
+
+/** Data URI for a street's drawn illustration, or null (emoji poster is used then). */
+export const artURI = (block) => (ART[block] ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(ART[block])}` : null);
 
 const EMOJI = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 // Accent per rotation: red, gold, maroon, slate.
@@ -24,8 +28,8 @@ export function posterSVG(s) {
   const pegs = m.pegs.map((p, i) => {
     const x = x0 + i * slot;
     const arrow = i < n - 1 ? `<text x="${x + slot / 2}" y="532" text-anchor="middle" font-size="30" fill="#f2b705" font-family="sans-serif">›</text>` : '';
-    return `<circle cx="${x}" cy="520" r="54" fill="#fff8e1" stroke="${accent}" stroke-width="5"/>
-      <text x="${x}" y="540" text-anchor="middle" font-size="58" font-family='${EMOJI}'>${p.art}</text>
+    return `<circle cx="${x}" cy="${artURI(s.block) ? 536 : 520}" r="${artURI(s.block) ? 46 : 54}" fill="#fff8e1" stroke="${accent}" stroke-width="5"/>
+      <text x="${x}" y="${artURI(s.block) ? 552 : 540}" text-anchor="middle" font-size="${artURI(s.block) ? 46 : 58}" font-family='${EMOJI}'>${p.art}</text>
       <text x="${x}" y="606" text-anchor="middle" font-size="34" font-weight="800" fill="#f2b705" font-family="Barlow Semi Condensed, Arial Narrow, sans-serif">${p.digit}</text>
       <text x="${x}" y="630" text-anchor="middle" font-size="17" fill="#d9d2c8" font-family="Barlow, sans-serif" letter-spacing="1">${esc(p.word.toUpperCase())}</text>${arrow}`;
   }).join('');
@@ -43,7 +47,9 @@ export function posterSVG(s) {
     <rect x="10" y="80" width="${W - 20}" height="26" fill="${accent}"/>
     <text x="${W / 2}" y="78" text-anchor="middle" font-size="56" font-weight="800" fill="${s.rotation === 2 ? '#0d0b0a' : '#ffffff'}" font-family="Barlow Semi Condensed, Arial Narrow, sans-serif" letter-spacing="2">${esc(s.name.toUpperCase())}</text>
     <circle cx="${W / 2}" cy="300" r="230" fill="url(#glow)"/>
-    <text x="${W / 2}" y="${300 + big * 0.36}" text-anchor="middle" font-size="${big}" font-family='${EMOJI}' transform="rotate(-6 ${W / 2} 300)">${art.join('')}</text>
+    ${artURI(s.block)
+    ? `<rect x="122" y="118" width="356" height="356" rx="26" fill="#fff8e1" stroke="${accent}" stroke-width="5"/><image x="128" y="124" width="344" height="344" href="${artURI(s.block)}"/>`
+    : `<text x="${W / 2}" y="${300 + big * 0.36}" text-anchor="middle" font-size="${big}" font-family='${EMOJI}' transform="rotate(-6 ${W / 2} 300)">${art.join('')}</text>`}
     ${pegs}
     <text x="${W / 2}" y="722" text-anchor="middle" font-size="84" font-weight="800" fill="#f2b705" font-family="Barlow Semi Condensed, Arial Narrow, sans-serif" letter-spacing="4">${s.block}</text>
   </svg>`;

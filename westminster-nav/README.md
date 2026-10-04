@@ -25,7 +25,7 @@ Every street has two aids, shown on every card back and on every wrong answer (`
 - **Letter math**, generated from the sheet. In rotations 1 to 3, block = rotation start + letter position × 100. For example, Lowell: L is the 12th letter and rotation 2 starts after Zuni (2400), so 2400 + 1200 = 3600. Rotation 4 has two names per letter (K pair = Kipling 10000, Kline 10100). The exceptions are explained on the card: skipped letters (no X or Y in rotation 1), doubled letters (Winona/Wolff, Webster/Wadsworth), the boundary streets (Sheridan, Alkire), the missing 12900, and Pierce, which is 6800 on the sheet but also runs on the 6600 line in some areas (`ALSO_AT` in `js/lib/rotations.js`).
 - **One mnemonic per street**, built with the keyword method and a peg system, with no pop-culture references. The street name becomes a keyword you can picture by sound or meaning (Lowell is a low well, Kendall is a candle, Mariposa is a butterfly). The hundreds are spelled with one fixed set of rhyming pegs, the same everywhere: 0 hero, 1 bun, 2 shoe, 3 tree, 4 door, 5 hive, 6 sticks, 7 heaven, 8 gate, 9 vine. One vivid scene has the keyword act on the pegs in digit order: "A low well: a tree grows out of it, dropping sticks into the water" = 3600. Tap the mnemonic to open its poster: the street name, the keyword picture, the pegs with their digits, and the hundred block.
 
-Learn mode follows the evidence on memory: encode a small chunk with elaborate, vivid cues; test yourself on it right away (retrieval practice); then come back in spaced sessions. Edit any entry in `MNEMONICS` if your crew has a better one.
+Learn mode follows the evidence on memory: encode a small chunk with elaborate, vivid cues; test yourself on it right away (retrieval practice); then come back in spaced sessions. Edit any entry in `MNEMONICS` if your crew has a better one. Streets with a drawing in `data/mnemonic-art/` show it on the poster; the rest use emoji art.
 
 ## Look
 
@@ -47,6 +47,9 @@ js/app.js             data loading and page routing
 js/lib/rotations.js   the rotation sheet (Broadway 0 → Alkire 13200)
 js/lib/mnemonics.js   one mnemonic and a letter-math rule for every street
 js/mnemonicArt.js     poster pictures for the mnemonics (SVG)
+data/mnemonic-art/    drawn illustrations, one <block>.svg per street (see docs/mnemonic-art-brief.md)
+tools/build-art.mjs   checks the illustrations and packs them into js/lib/mnemonicArtData.js
+tools/bundle-preview.mjs  builds the single-file preview page
 js/lib/grid.js        house number <-> coordinates (Denver grid)
 js/lib/graph.js       road graph, fastest routes, turn-by-turn directions
 js/map.js             canvas map (no tiles, so street names stay hidden until you ask)
