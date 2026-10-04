@@ -1,11 +1,16 @@
-// "Cardinal": from an address, which way is the point of interest?
+// "Cardinal": from an address, which way is the hospital, station or landmark?
+// Station mode flips it: from a WFD station, which way is a random address?
 
 import { bearing, distance, toCardinal, CARDINALS, CARDINAL_NAMES } from '../lib/geo.js';
 import { el, onKeys, scoreBar, stopwatch, miles } from '../ui.js';
 import { mapPanel } from '../map.js';
 import * as store from '../store.js';
-import { COLORS, gridNote } from './common.js';
+import { COLORS, gridNote, stationPicker, addressAwayFrom } from './common.js';
 
+const MODES = [
+  { id: 'place', label: 'From an address', hint: 'Which way is the place?' },
+  { id: 'station', label: 'From a station', hint: 'Which way is the address?' },
+];
 const KINDS = [
   { id: 'key', label: 'Hospitals + stations' },
   { id: 'hospital', label: 'Hospitals' },
@@ -22,8 +27,10 @@ const ROSE = ['NW', 'N', 'NE', 'W', null, 'E', 'SW', 'S', 'SE'];
 const KEYS = { 7: 'NW', 8: 'N', 9: 'NE', 4: 'W', 6: 'E', 1: 'SW', 2: 'S', 3: 'SE', q: 'NW', w: 'N', e: 'NE', a: 'W', d: 'E', z: 'SW', x: 'S', c: 'SE' };
 
 export function cardinal(root, ctx) {
-  const prefs = store.load('cardinal:prefs', { kind: 'key' });
+  const prefs = { kind: 'key', mode: 'place', ...store.load('cardinal:prefs', {}) };
   if (!KINDS.some((k) => k.id === prefs.kind)) prefs.kind = 'key';
+  if (!MODES.some((m) => m.id === prefs.mode)) prefs.mode = 'place';
+  const picker = stationPicker(ctx, 'cardinal', () => ask());
   // The hospitals crews actually transport to (data/landmarks.json), the WFD
   // stations, then everything else the map data knows about.
   const key = [
@@ -49,10 +56,16 @@ export function cardinal(root, ctx) {
   root.append(el('h1', { class: 'game-title' }, 'Cardinal'), head, stage, mapBox);
 
   const renderHead = () => head.replaceChildren(
-    el('div', { class: 'chips' }, KINDS.map((k) => el('button', {
-      class: prefs.kind === k.id ? 'chip on' : 'chip',
-      onclick: () => { prefs.kind = k.id; store.save('cardinal:prefs', prefs); ask(); },
-    }, k.label))),
+    el('div', { class: 'segs' }, MODES.map((m) => el('button', {
+      type: 'button', class: prefs.mode === m.id ? 'seg on' : 'seg', 'aria-pressed': String(prefs.mode === m.id), title: m.hint,
+      onclick: () => { prefs.mode = m.id; store.save('cardinal:prefs', prefs); ask(); },
+    }, m.label))),
+    prefs.mode === 'station'
+      ? el('div', { class: 'row' }, picker.el)
+      : el('div', { class: 'chips' }, KINDS.map((k) => el('button', {
+        class: prefs.kind === k.id ? 'chip on' : 'chip',
+        onclick: () => { prefs.kind = k.id; store.save('cardinal:prefs', prefs); ask(); },
+      }, k.label))),
     scoreBar(store.stats('cardinal')));
 
   function weighted(list) {
@@ -65,15 +78,27 @@ export function cardinal(root, ctx) {
     renderHead();
     mapBox.classList.add('hidden');
     stage.replaceChildren();
-    const list = ofKind();
-    if (!list.length) { stage.append(el('div', { class: 'panel' }, 'No places of that kind in the map data.')); return; }
-    let a; let poi;
-    for (let i = 0; i < 40; i++) {
-      a = ctx.randomAddress();
-      poi = weighted(list);
-      if (distance(a.p, poi.p) > 600) break;
+    // from -> to, each { name, sub, p, marker }.
+    let from;
+    let to;
+    if (prefs.mode === 'station') {
+      const st = picker.get();
+      const a = addressAwayFrom(ctx, [st.lat, st.lon], 600);
+      from = { name: `WFD ${st.name}`, sub: st.address, p: [st.lat, st.lon], marker: { color: COLORS.station, text: st.id, r: 9 } };
+      to = { name: ctx.addressLabel(a), sub: a.approx ? 'approximate address' : '', p: a.p, marker: { color: COLORS.dest, r: 7 } };
+    } else {
+      const list = ofKind();
+      if (!list.length) { stage.append(el('div', { class: 'panel' }, 'No places of that kind in the map data.')); return; }
+      let a; let poi;
+      for (let i = 0; i < 40; i++) {
+        a = ctx.randomAddress();
+        poi = weighted(list);
+        if (distance(a.p, poi.p) > 600) break;
+      }
+      from = { name: ctx.addressLabel(a), p: a.p, marker: { color: COLORS.dest, r: 7 } };
+      to = { name: poi.name, sub: poi.city || TYPE_LABEL[poi.type] || poi.type, p: poi.p, marker: { color: poi.type === 'station' ? COLORS.station : COLORS.poi, r: 8, shape: 'square' } };
     }
-    const truth = toCardinal(bearing(a.p, poi.p));
+    const truth = toCardinal(bearing(from.p, to.p));
     const timer = el('span', { class: 'timer' }, '0.0s');
     const watch = stopwatch(timer);
     let done = false;
@@ -93,31 +118,29 @@ export function cardinal(root, ctx) {
         else if (k === c) b.classList.add(credit ? 'close' : 'wrong');
       });
       renderHead();
-      const brg = Math.round(bearing(a.p, poi.p));
+      const brg = Math.round(bearing(from.p, to.p));
       stage.append(el('div', { class: `verdict ${credit === 1 ? 'good' : credit ? 'meh' : 'bad'}` },
         el('b', {}, credit === 1 ? `Correct: ${truth} (+${points})` : credit ? `Close: it's ${truth} (+${points})` : `It's ${truth}`),
-        el('p', {}, `${poi.name} is ${CARDINAL_NAMES[truth]} of the address: bearing ${brg}°, ${miles(distance(a.p, poi.p))} straight-line.`),
-        el('p', { class: 'muted' }, `Address: ${gridNote(ctx, a.p)}.`, el('br'), `${poi.name}: ${gridNote(ctx, poi.p)}.`),
+        el('p', {}, `${to.name} is ${CARDINAL_NAMES[truth]} of ${from.name}: bearing ${brg}°, ${miles(distance(from.p, to.p))} straight-line.`),
+        el('p', { class: 'muted' }, `${from.name}: ${gridNote(ctx, from.p)}.`, el('br'), `${to.name}: ${gridNote(ctx, to.p)}.`),
         el('button', { class: 'btn primary', onclick: ask }, 'Next ↵')));
       mapBox.classList.remove('hidden');
       map.set({
-        routes: [{ pts: [a.p, poi.p], color: COLORS.poi, width: 3, dash: [4, 6] }],
-        markers: [
-          { p: a.p, color: COLORS.dest, r: 7, label: ctx.addressLabel(a) },
-          { p: poi.p, color: poi.type === 'station' ? COLORS.station : COLORS.poi, r: 8, shape: 'square', label: poi.name },
-        ],
+        routes: [{ pts: [from.p, to.p], color: COLORS.poi, width: 3, dash: [4, 6] }],
+        markers: [{ p: from.p, label: from.name, ...from.marker }, { p: to.p, label: to.name, ...to.marker }],
       });
-      map.fit([a.p, poi.p], 60);
+      map.fit([from.p, to.p], 60);
     };
     for (const c of CARDINALS) btns[c] = el('button', { class: 'rose-btn', onclick: () => answer(c) }, c);
     stage.append(
       el('div', { class: 'prompt' },
-        el('div', { class: 'face-sub' }, 'Standing at'),
-        el('div', { class: 'face-big addr' }, ctx.addressLabel(a)),
+        el('div', { class: 'face-sub' }, prefs.mode === 'station' ? 'Leaving' : 'Standing at'),
+        el('div', { class: prefs.mode === 'station' ? 'face-mid' : 'face-big addr' }, from.name, from.sub ? el('span', { class: 'tag' }, from.sub) : null),
         el('div', { class: 'face-sub' }, 'which way is'),
-        el('div', { class: 'face-mid' }, poi.name, ' ', el('span', { class: 'tag' }, poi.city || TYPE_LABEL[poi.type] || poi.type)),
+        el('div', { class: prefs.mode === 'station' ? 'face-big addr' : 'face-mid' }, to.name, prefs.mode === 'station' ? null : el('span', { class: 'tag' }, to.sub)),
+        prefs.mode === 'station' && to.sub ? el('small', { class: 'muted' }, to.sub) : null,
         timer),
-      el('div', { class: 'rose' }, ROSE.map((c) => (c ? btns[c] : el('div', { class: 'rose-center' }, '📍')))));
+      el('div', { class: 'rose' }, ROSE.map((c) => (c ? btns[c] : el('div', { class: 'rose-center' }, prefs.mode === 'station' ? '🚒' : '📍')))));
     onKeys((e) => {
       if (!done && KEYS[e.key.toLowerCase()]) answer(KEYS[e.key.toLowerCase()]);
       else if ((e.key === 'Enter' || e.key === ' ') && done) { e.preventDefault(); ask(); }
