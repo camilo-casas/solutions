@@ -75,7 +75,7 @@ function home(root, ctx) {
   });
   root.append(
     el('section', { class: 'hero' },
-      el('h1', {}, 'Know your first-due by heart.'),
+      el('h1', {}, 'Make Westy your hometown.'),
       el('p', {}, 'Learn the Westminster street rotations, then test yourself on getting out of the station and to the address.')),
     el('div', { class: 'game-grid' }, cards),
     el('section', { class: 'panel small' },
