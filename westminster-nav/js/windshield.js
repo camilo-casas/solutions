@@ -7,6 +7,7 @@ import { makeProjection, bearing, angleDiff, toCardinal } from './lib/geo.js';
 import { shortName, nameKey } from './lib/names.js';
 import { el } from './ui.js';
 import { freewayExits, exitTab } from './lib/exits.js';
+import { streetBlock } from './lib/streetBlock.js';
 
 const RAD = Math.PI / 180;
 const FAR = 750; // meters drawn
@@ -512,18 +513,18 @@ export class Windshield {
       g.fillRect(tx - px1 * 1.2, ty, px1 * 2.4, Math.max(1.5, px1 * 0.3));
       return;
     }
-    const block = this.blockNumber(sg, cross.brg);
+    const block = this.blockNumber(sg, cross.brg, cross.nm);
     this.blade(g, tx, ty, size, cross.nm, '#0f6b3a', '#fff', block);
   }
 
-  /** Hundred block shown on a blade, like Westminster's signs (E-W streets show W numbers). */
-  blockNumber(sg, brg) {
-    const grid = this.ctx.grid;
-    const [lat, lon] = this.scene.proj.inv([sg.x, sg.y]);
-    const ew = Math.abs(Math.sin(brg * RAD)) > Math.abs(Math.cos(brg * RAD));
-    const n = ew ? grid.westNumber(lon) : grid.northNumber(lat);
-    if (!(n > 0 && n < 20000)) return '';
-    return String(Math.floor(n / 100) * 100);
+  /** Number on a blade: the street's own grid number ("Lowell Blvd 3600", "W 91st Ave 9100"). */
+  blockNumber(sg, brg, name) {
+    sg.blocks ??= new Map();
+    if (!sg.blocks.has(name)) {
+      const [lat, lon] = this.scene.proj.inv([sg.x, sg.y]);
+      sg.blocks.set(name, streetBlock(name, lat, lon, brg, this.ctx.grid));
+    }
+    return sg.blocks.get(name);
   }
 
   blade(g, cx, top, size, text, bg, fg, small = '') {
