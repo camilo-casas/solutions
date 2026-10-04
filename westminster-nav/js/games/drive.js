@@ -23,7 +23,7 @@ function drive(root, ctx, mode) {
   const G = ctx.graph;
   const isT = mode === 'transporter';
   const title = isT ? 'Transporter' : 'Responder';
-  const prefs = store.load(`${mode}:prefs`, { showMap: false, hints: false, hospital: '' });
+  const prefs = { showMap: false, hints: false, off: [], ...store.load(`${mode}:prefs`, {}) };
 
   // Hospitals the street data reaches (others are outside the downloaded map).
   // A hospital counts only if its street connects to Westminster's road network.
@@ -36,11 +36,24 @@ function drive(root, ctx, mode) {
   const reachable = hospitals.filter((h) => h.reach);
 
   const picker = isT ? null : stationPicker(ctx, mode, () => start());
-  const hospSel = isT ? el('select', {
-    'aria-label': 'Hospital',
-    onchange: (e) => { prefs.hospital = e.target.value; store.save(`${mode}:prefs`, prefs); start(); },
-  }, el('option', { value: '' }, 'Random hospital'), reachable.map((h) => el('option', { value: h.name, selected: prefs.hospital === h.name }, h.name))) : null;
-
+  // Transporter: each hospital can be switched on or off; calls go to a random one that's on.
+  const enabledHospitals = () => reachable.filter((h) => !prefs.off.includes(h.name));
+  let hospOpen = false;
+  const hospToggles = () => el('details', { class: 'hosp-toggles', open: hospOpen, ontoggle: (e) => { hospOpen = e.target.open; } },
+    el('summary', {}, el('span', { class: 'deck-label' }, 'Hospitals'), ` ${enabledHospitals().length} of ${reachable.length} on`),
+    el('div', { class: 'chips' }, reachable.map((h) => {
+      const on = !prefs.off.includes(h.name);
+      return el('button', {
+        type: 'button', class: on ? 'chip on' : 'chip', 'aria-pressed': String(on), title: h.city,
+        onclick: () => {
+          if (on && enabledHospitals().length === 1) return; // keep at least one
+          prefs.off = on ? [...prefs.off, h.name] : prefs.off.filter((n) => n !== h.name);
+          store.save(`${mode}:prefs`, prefs);
+          start();
+        },
+      }, `${on ? '✓ ' : ''}${h.name}`);
+    })),
+    el('small', { class: 'muted' }, 'Tap a hospital to switch it on or off. Calls go to a random hospital that\'s on.'));
   const ws = new Windshield(ctx, { vehicle: isT ? 'ambulance' : 'engine' });
   let seen = null; // what the windshield last showed: { trail, heading, pending }
   const head = el('div', { class: 'game-head' });
@@ -53,7 +66,8 @@ function drive(root, ctx, mode) {
     el('input', { type: 'checkbox', checked: prefs[key], onchange: (e) => { prefs[key] = e.target.checked; store.save(`${mode}:prefs`, prefs); render(); } }),
     ` ${label}`);
   const renderHead = () => head.replaceChildren(...[
-    el('div', { class: 'row' }, isT ? el('label', { class: 'inline' }, 'To ', hospSel) : picker.el, toggle('showMap', 'Show map'), toggle('hints', 'Hints')),
+    el('div', { class: 'row' }, isT ? null : picker.el, toggle('showMap', 'Show map'), toggle('hints', 'Hints')),
+    isT ? hospToggles() : null,
     isT && hospitals.length > reachable.length
       ? el('small', { class: 'muted' }, `Not drivable yet (no connected streets in the map data): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
       : null,
@@ -247,7 +261,7 @@ function drive(root, ctx, mode) {
     stage.replaceChildren();
     for (let tries = 0; tries < 20; tries++) {
       if (isT) {
-        const h = (prefs.hospital && reachable.find((x) => x.name === prefs.hospital)) || pick(reachable);
+        const h = pick(enabledHospitals().length ? enabledHospitals() : reachable);
         if (!h) { stage.append(el('div', { class: 'panel error' }, 'No hospital in data/landmarks.json is inside the map area.')); return; }
         const a = addressAwayFrom(ctx, h.p, 1500);
         const s = ctx.addressNode(a);
@@ -323,7 +337,7 @@ function drive(root, ctx, mode) {
     stage.append(...[
       el('div', { class: 'prompt drive-prompt' },
         isT
-          ? el('div', { class: 'face-sub' }, 'Patient loaded at ', el('b', {}, ctx.addressLabel(g.from)))
+          ? el('div', { class: 'patient' }, el('span', { class: 'face-sub' }, 'Patient loaded at'), el('div', { class: 'patient-addr' }, ctx.addressLabel(g.from)))
           : stationCard(g.station),
         el('div', { class: 'face-sub' }, isT ? 'Transport to' : 'Responding to'),
         el('div', { class: 'face-big addr' }, isT ? g.to.name : ctx.addressLabel(g.to)),

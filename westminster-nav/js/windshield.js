@@ -15,8 +15,15 @@ const BACK = 16; // camera sits this far behind the truck's position (at the sto
 const CELL = 200;
 const WIDTH = { motorway: 15, trunk: 13, primary: 13, secondary: 11, tertiary: 9.5, link: 6.5, unclassified: 7.5, residential: 7.5 };
 const MAJOR = new Set(['motorway', 'trunk', 'primary', 'secondary']);
-const WALLS = ['#cdbca3', '#b9927a', '#a9aba5', '#d8ccb7', '#9a8875', '#c4b39a', '#b5a58f'];
-const ROOFS = ['#5d4c44', '#4f5358', '#6e5241', '#5a4f4a'];
+// Downtown Denver (16th St & Curtis), for the skyline on the horizon.
+const DOWNTOWN = [39.7480, -104.9952];
+// Skyline towers: [offset across the skyline (-1..1), width, height], roughly
+// Republic Plaza, Wells Fargo Center, 1801 California and their neighbors.
+const TOWERS = [
+  [-0.95, 0.07, 0.35], [-0.82, 0.06, 0.5], [-0.7, 0.08, 0.42], [-0.56, 0.06, 0.62], [-0.44, 0.09, 0.55],
+  [-0.3, 0.07, 0.78], [-0.18, 0.1, 1.0], [-0.04, 0.08, 0.86], [0.1, 0.11, 0.95], [0.24, 0.07, 0.7],
+  [0.36, 0.09, 0.82], [0.5, 0.06, 0.6], [0.62, 0.08, 0.48], [0.76, 0.07, 0.4], [0.9, 0.06, 0.3],
+];
 
 // ---- Scene data, built once per city and cached on the shared context ------
 function buildScene(ctx) {
@@ -27,14 +34,11 @@ function buildScene(ctx) {
   const put = (x, y, item, key) => {
     const k = `${Math.floor(x / CELL)},${Math.floor(y / CELL)}`;
     let c = cells.get(k);
-    if (!c) { c = { segs: [], houses: [], signs: [] }; cells.set(k, c); }
+    if (!c) { c = { segs: [], signs: [] }; cells.set(k, c); }
     c[key].push(item);
   };
   const segs = [];
-  const houses = [];
-  let seed = 1;
-  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  for (const [ni, cls, , nodes] of ctx.city.ways) {
+  for (const [, cls, , nodes] of ctx.city.ways) {
     const w = WIDTH[cls] || 7;
     for (let i = 0; i + 1 < nodes.length; i++) {
       const [ax, ay] = xy(nodes[i]);
@@ -52,34 +56,8 @@ function buildScene(ctx) {
         const key = `${Math.floor(x / CELL)},${Math.floor(y / CELL)}`;
         if (!seen.has(key)) { seen.add(key); put(x, y, s, 'segs'); }
       }
-      // Simple houses along residential streets, for depth.
-      if ((cls === 'residential' || cls === 'unclassified') && len > 40 && ni >= 0) {
-        const ux = (bx - ax) / len;
-        const uy = (by - ay) / len;
-        for (let d = 18; d < len - 18; d += 24 + rnd() * 8) {
-          for (const side of [-1, 1]) {
-            if (rnd() < 0.18) continue;
-            const off = w / 2 + 11 + rnd() * 5;
-            const cx = ax + ux * d - uy * off * side;
-            const cy = ay + uy * d + ux * off * side;
-            const h = { cx, cy, ux, uy, hw: 6 + rnd() * 3, hd: 5 + rnd() * 2.5, ht: 4 + rnd() * 3.5, wall: WALLS[Math.floor(rnd() * WALLS.length)], roof: ROOFS[Math.floor(rnd() * ROOFS.length)] };
-            houses.push(h);
-            put(cx, cy, h, 'houses');
-          }
-        }
-      }
     }
   }
-  // Drop houses that would sit on top of another road (near intersections).
-  for (const c of cells.values()) {
-    c.houses = c.houses.filter((h) => !c.segs.some((sg) => {
-      const dx = sg.bx - sg.ax;
-      const dy = sg.by - sg.ay;
-      const t = Math.max(0, Math.min(1, ((h.cx - sg.ax) * dx + (h.cy - sg.ay) * dy) / (sg.len * sg.len)));
-      return Math.hypot(sg.ax + dx * t - h.cx, sg.ay + dy * t - h.cy) < sg.w / 2 + Math.max(h.hw, h.hd) + 1;
-    }));
-  }
-
   // Street-sign corners: base nodes where two or more named streets meet.
   for (let n = 0; n < G.base; n++) {
     const names = new Map();
@@ -93,7 +71,7 @@ function buildScene(ctx) {
     const [x, y] = xy(n);
     put(x, y, { x, y, n, names }, 'signs');
   }
-  return { proj, cells, xy, segs, houses };
+  return { proj, cells, xy, segs };
 }
 
 export class Windshield {
@@ -259,6 +237,7 @@ export class Windshield {
     g.fillStyle = sky;
     g.fillRect(0, 0, W, HZ + 1);
     this.paintMountains(g, W, HZ, F, h);
+    this.paintSkyline(g, W, HZ, F, h, cx, cy);
     const ground = g.createLinearGradient(0, HZ, 0, H);
     ground.addColorStop(0, '#b9bfa6');
     ground.addColorStop(0.25, '#9fa982');
@@ -268,7 +247,6 @@ export class Windshield {
 
     // Gather nearby items from the grid.
     const segs = new Set();
-    const houses = [];
     const signs = [];
     const r = Math.ceil(FAR / CELL);
     const gx = Math.floor(cx / CELL);
@@ -278,7 +256,6 @@ export class Windshield {
         const cell = this.scene.cells.get(`${gx + i},${gy + j}`);
         if (!cell) continue;
         for (const s of cell.segs) segs.add(s);
-        for (const hs of cell.houses) houses.push(hs);
         for (const sg of cell.signs) signs.push(sg);
       }
     }
@@ -351,16 +328,6 @@ export class Windshield {
       }
     }
 
-    // Houses, far to near.
-    const visHouses = [];
-    for (const hs of houses) {
-      const c0 = cam(hs.cx, hs.cy);
-      if (c0[2] < 2 || c0[2] > 420 || Math.abs(c0[0]) > c0[2] * 1.4 + 20) continue;
-      visHouses.push({ hs, z: c0[2] });
-    }
-    visHouses.sort((a, b) => b.z - a.z);
-    for (const { hs, z } of visHouses) this.paintHouse(g, hs, cam, poly, mix, fog(z), cx, cy);
-
     // Street signs at intersections ahead, far to near.
     const visSigns = [];
     for (const sg of signs) {
@@ -381,6 +348,27 @@ export class Windshield {
     this.compassText.textContent = toCardinal(h);
     const miles = Math.max(0, this.shownDist / 1609.344);
     this.odoDigits.replaceChildren(...miles.toFixed(2).padStart(6, '0').split('').map((ch) => el('span', { class: ch === '.' ? 'dot' : 'dig' }, ch)));
+  }
+
+  paintSkyline(g, W, HZ, F, h, cx, cy) {
+    // Downtown Denver sits south-southeast of Westminster: draw its towers in the
+    // true direction from the truck, sized by distance (exaggerated, like the mountains).
+    const [dx, dy] = this.scene.proj.fwd(DOWNTOWN);
+    const dist = Math.hypot(dx - cx, dy - cy);
+    if (dist < 1500) return;
+    const brg = (Math.atan2(dx - cx, dy - cy) / RAD + 360) % 360;
+    const rel = angleDiff(h, brg);
+    if (Math.abs(rel) > 50) return;
+    const centerX = W / 2 + F * Math.tan(rel * RAD);
+    const halfW = F * Math.tan(Math.max(3.5, Math.min(10, (2200 / dist) / RAD)) * RAD);
+    const tall = HZ * Math.max(0.11, Math.min(0.24, (4000 / dist) * 0.3));
+    g.fillStyle = '#7d8aa0';
+    for (const [o, w, ht] of TOWERS) {
+      const x = centerX + o * halfW;
+      const bw = Math.max(2, w * halfW);
+      const top = HZ - ht * tall;
+      g.fillRect(x - bw / 2, top, bw, HZ - top + 1);
+    }
   }
 
   paintMountains(g, W, HZ, F, h) {
@@ -407,37 +395,6 @@ export class Windshield {
     m.addColorStop(1, '#a9b6c6');
     g.fillStyle = m;
     g.fill();
-  }
-
-  paintHouse(g, hs, cam, poly, mix, f, cx, cy) {
-    const { cx: x, cy: y, ux, uy, hw, hd, ht } = hs;
-    // Footprint corners (along-street ux,uy; across -uy,ux).
-    const corners = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([a, b]) => [x + ux * a - uy * b, y + uy * a + ux * b]);
-    // Walls whose outward normal faces the camera.
-    for (let i = 0; i < 4; i++) {
-      const p = corners[i];
-      const q = corners[(i + 1) % 4];
-      const mx = (p[0] + q[0]) / 2;
-      const my = (p[1] + q[1]) / 2;
-      const nx = mx - x;
-      const ny = my - y;
-      if (nx * (cx - mx) + ny * (cy - my) <= 0) continue;
-      const shade = i % 2 ? 0.0 : 0.12;
-      poly([cam(p[0], p[1], 0), cam(q[0], q[1], 0), cam(q[0], q[1], ht), cam(p[0], p[1], ht)], mix(darken(hs.wall, shade), f));
-    }
-    // Pitched roof: two slopes meeting at a ridge along the street direction.
-    const r1 = [x - ux * hw, y - uy * hw];
-    const r2 = [x + ux * hw, y + uy * hw];
-    const rt = ht + 2.6;
-    const halves = [[corners[0], corners[1]], [corners[3], corners[2]]];
-    for (const [a, b] of halves) {
-      const mx = (a[0] + b[0]) / 2;
-      const my = (a[1] + b[1]) / 2;
-      const nx = mx - x;
-      const ny = my - y;
-      const facing = nx * (cx - mx) + ny * (cy - my) > 0;
-      poly([cam(a[0], a[1], ht), cam(b[0], b[1], ht), cam(r2[0], r2[1], rt), cam(r1[0], r1[1], rt)], mix(darken(hs.roof, facing ? 0 : 0.15), f));
-    }
   }
 
   paintSign(g, { sg, px, py, z }, cam, scr, F, h) {
