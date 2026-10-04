@@ -53,6 +53,8 @@ async function overpass(query, label) {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'westminster-nav-trainer/1.0' },
         body: 'data=' + encodeURIComponent(query),
+        // Public Overpass servers sometimes never answer; give up and try the next one.
+        signal: AbortSignal.timeout(360000),
       });
       if (res.ok) return (await res.json()).elements;
       process.stderr.write(`  HTTP ${res.status}\n`);
@@ -272,12 +274,15 @@ async function buildFromOSM() {
     out geom;`, 'roads');
   const landmarks = JSON.parse(await readFile(join(here, '..', 'data', 'landmarks.json'), 'utf8'));
   const around = landmarks.map((l) => `way["highway"~"^(${ALL_ROADS})$"](around:${HOSPITAL_RADIUS},${l.lat},${l.lon});`).join('\n      ');
-  const regionRoads = await overpass(`[out:json][timeout:300];
+  const metroRoads = await overpass(`[out:json][timeout:300];
+    way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${REGION_BOX.join(',')});
+    out geom;`, 'metro freeways and main roads');
+  const hospitalRoads = await overpass(`[out:json][timeout:300];
     (
-      way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link)$"](${REGION_BOX.join(',')});
       ${around}
     );
-    out geom;`, 'metro freeways and hospital streets');
+    out geom;`, 'streets around hospitals');
+  const regionRoads = [...metroRoads, ...hospitalRoads];
   const byId = new Map();
   for (const w of [...cityRoads, ...regionRoads]) if (w.type === 'way' && w.geometry) byId.set(w.id, w);
   const roads = [...byId.values()];
