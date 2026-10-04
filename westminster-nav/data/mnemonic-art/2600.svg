@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><path d="M20 470 Q60 380 40 320 M40 400 l-16 -8 M50 360 l16 -6 M480 470 Q450 400 476 330 M466 400 l16 -6 M470 360 l-16 -8" fill="none" stroke="#6b4a2a" stroke-width="8"/></g>
+<g transform="translate(200 380) scale(2.4)" stroke="#14110f" stroke-width="3.33" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-44 -52 L-6 -52 L-2 -12 Q34 -8 54 6 Q62 14 60 24 L-48 24 Q-50 -10 -44 -52 Z" fill="#c1121f"/>
+<path d="M28 0 Q52 6 60 24 L26 24 Q20 12 28 0 Z" fill="#fff"/>
+<path d="M-52 22 H62 Q66 40 52 40 H-46 Q-56 40 -52 22 Z" fill="#fff"/>
+<path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#14110f" stroke-width="5.67"/><path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#fff" stroke-width="2.67"/></g>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<ellipse cx="190" cy="250" rx="40" ry="32" fill="#5a2a1a"/>
+<circle cx="200" cy="190" r="36" fill="#5a2a1a"/>
+<path d="M190 158 Q170 110 150 100 M210 156 Q220 110 246 100" fill="none" stroke-width="6"/>
+<circle cx="214" cy="184" r="10" fill="#fff" stroke-width="5"/><circle cx="216" cy="186" r="4" fill="#14110f" stroke="none"/>
+<path d="M210 210 q10 6 18 -2" fill="none" stroke-width="5"/>
+<path d="M228 240 L280 220 L330 200 M226 260 L290 260" fill="none" stroke-width="7"/>
+</g>
+<g transform="translate(370 190) rotate(60)" stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><path d="M-24 48 L-40 -46 M-12 50 L-18 -52 M0 50 L2 -54 M12 50 L20 -50 M24 48 L40 -44" fill="none" stroke="#14110f" stroke-width="19"/><path d="M-24 48 L-40 -46 M-12 50 L-18 -52 M0 50 L2 -54 M12 50 L20 -50 M24 48 L40 -44" fill="none" stroke="#d9a066" stroke-width="11"/>
+<path d="M-31 2 Q0 12 31 2" fill="none" stroke="#14110f" stroke-width="16"/><path d="M-31 2 Q0 12 31 2" fill="none" stroke="#c1121f" stroke-width="8"/><path d="M2 8 q-10 12 -18 10 M2 8 q10 12 18 12" fill="none" stroke="#14110f" stroke-width="13"/><path d="M2 8 q-10 12 -18 10 M2 8 q10 12 18 12" fill="none" stroke="#c1121f" stroke-width="5"/></g>
+<path d="M30 260 h40 M40 300 h30" fill="none" stroke="#14110f" stroke-width="6" stroke-linecap="round"/>
+</svg>

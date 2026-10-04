@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g transform="translate(380 130) scale(1.4)" stroke="#14110f" stroke-width="5.71" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-34 -66 a34 10 0 1 0 68 0 a34 10 0 1 0 -68 0" fill="none" stroke="#14110f" stroke-width="15.71"/><path d="M-34 -66 a34 10 0 1 0 68 0 a34 10 0 1 0 -68 0" fill="none" stroke="#f2b705" stroke-width="10"/>
+<path d="M-56 30 Q-82 30 -78 6 Q-74 -16 -50 -12 Q-46 -42 -16 -36 Q2 -56 26 -40 Q52 -48 56 -16 Q82 -12 78 10 Q74 30 52 30 Z" fill="#fff"/>
+<path d="M-40 4 Q-30 -6 -18 0" fill="none" stroke="#dbe9f5" stroke-width="5.71"/></g>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<ellipse cx="160" cy="450" rx="120" ry="26" fill="#6c7a89"/>
+<rect x="140" y="456" width="40" height="30" fill="#4b5563"/>
+<path d="M80 444 Q90 404 160 404 Q230 404 240 444 Q160 470 80 444 Z" fill="#c4703e"/>
+<path d="M120 420 q40 -10 80 0" fill="none" stroke-width="5"/>
+</g>
+<g transform="rotate(-14 170 300)">
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><path d="M84 280 Q60 330 100 352 L260 352 Q290 320 260 290 Z" fill="#c4703e" stroke-width="7"/></g>
+<g transform="translate(176 290) scale(1.4)" stroke="#14110f" stroke-width="5.71" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-44 -52 L-6 -52 L-2 -12 Q34 -8 54 6 Q62 14 60 24 L-48 24 Q-50 -10 -44 -52 Z" fill="#c1121f"/>
+<path d="M28 0 Q52 6 60 24 L26 24 Q20 12 28 0 Z" fill="#fff"/>
+<path d="M-52 22 H62 Q66 40 52 40 H-46 Q-56 40 -52 22 Z" fill="#fff"/>
+<path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#14110f" stroke-width="9.71"/><path d="M-16 -42 L2 -40 M-14 -30 L6 -27 M-10 -18 L12 -15" fill="none" stroke="#fff" stroke-width="4.57"/></g>
+</g>
+<path d="M120 390 v-30 M170 386 v-26 M220 390 v-30" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+<path d="M260 210 q20 -10 30 -30" fill="none" stroke="#14110f" stroke-width="6" stroke-linecap="round"/>
+</svg>
