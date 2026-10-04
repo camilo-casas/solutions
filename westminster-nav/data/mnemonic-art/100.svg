@@ -13,7 +13,7 @@
 <path d="M200 240 Q200 196 256 194 Q312 196 312 240 Q256 254 200 240 Z" fill="#7a4b22"/>
 <path d="M222 206 l60 30 M218 226 l40 18 M244 200 l56 30" stroke-width="5"/>
 <path d="M256 194 q-4 -22 10 -30" stroke-width="10" fill="none"/></g>
-<path d="M232 276 q12 10 24 0 M232 304 q12 10 24 0" fill="none" stroke-width="6"/>
+<path d="M270 262 q8 8 16 0 M296 262 q8 8 16 0 M282 282 q6 4 12 0" fill="none" stroke-width="5"/>
 <path d="M178 292 Q182 270 210 268 Q240 268 248 292" fill="none" stroke-width="0"/>
 </g>
 <path d="M150 300 Q256 340 362 300 L366 328 Q256 364 146 328 Z" fill="#e8b552" stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/></g>

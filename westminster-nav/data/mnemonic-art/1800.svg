@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe3ff"/><stop offset="1" stop-color="#fff8e1"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#sky)"/>
+<ellipse cx="256" cy="470" rx="230" ry="34" fill="#9bbf5a"/>
+<g stroke="#14110f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"><path d="M420 10 V28 M420 132 V150 M350 80 H368 M472 80 H490 M372 32 l14 14 M468 128 l-14 -14 M468 32 l-14 14 M372 128 l14 -14" stroke-width="7"/><circle cx="420" cy="80" r="40" fill="#f2b705"/></g>
+<g transform="translate(256 360) scale(1.7)" stroke="#14110f" stroke-width="4.71" stroke-linejoin="round" stroke-linecap="round">
+<rect x="-66" y="-70" width="20" height="146" fill="#8d8a85"/><rect x="46" y="-70" width="20" height="146" fill="#8d8a85"/>
+<rect x="-70" y="-82" width="28" height="12" fill="#a8a29a"/><rect x="42" y="-82" width="28" height="12" fill="#a8a29a"/>
+<path d="M-30 -58 V72 M-10 -58 V72 M10 -58 V72 M30 -58 V72 M-46 -36 H46 M-46 52 H46" fill="none" stroke-width="3.76"/>
+<path d="M-38 -56 L-30 -80 L-22 -56 Z M-18 -56 L-10 -80 L-2 -56 Z M2 -56 L10 -80 L18 -56 Z M22 -56 L30 -80 L38 -56 Z" fill="#14110f" stroke-width="1.88"/>
+<path d="M-20 -36 Q-20 8 0 8 Q20 8 20 -36" fill="none" stroke-width="2.82"/></g>
+<g transform="translate(256 210) scale(2.1)" stroke="#14110f" stroke-width="3.8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-54 8 Q-54 -36 0 -36 Q54 -36 54 8 Q54 24 0 24 Q-54 24 -54 8 Z" fill="#d9532b"/>
+<path d="M-50 9 Q0 18 50 9" fill="none" stroke-width="2.4"/>
+<g fill="#fff" stroke-width="1.4"><ellipse cx="-30" cy="-10" rx="5" ry="3"/><ellipse cx="30" cy="-8" rx="5" ry="3"/><ellipse cx="2" cy="-26" rx="5" ry="3"/></g>
+<path d="M-26 -14 h20 v8 q-10 6 -20 0 Z M6 -14 h20 v8 q-10 6 -20 0 Z M-6 -12 h12" fill="#14110f" stroke-width="2.4"/>
+<path d="M-8 6 q8 6 16 0" fill="none" stroke-width="2.4"/>
+<path d="M-50 4 L-74 26 M50 4 L76 24" fill="none" stroke="#14110f" stroke-width="9.8"/><path d="M-50 4 L-74 26 M50 4 L76 24" fill="none" stroke="#d9532b" stroke-width="6"/>
+</g>
+<path d="M120 150 l-14 -10 M392 150 l14 -10" fill="none" stroke="#c1121f" stroke-width="6" stroke-linecap="round"/>
+</svg>
