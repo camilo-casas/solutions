@@ -91,7 +91,7 @@ To adjust one, open **Station setup** (link at the bottom of the home page), tap
 
 ## Hospitals
 
-Transporter drives to every hospital in `data/landmarks.json`. Outside Westminster the map carries the metro freeways and main roads (I-25, I-70, I-76, US-36, C-470 and the like, plus primary arterials) and every street within 1.2 km of each hospital. Editing `landmarks.json` triggers a map rebuild, so a new hospital gets its surrounding streets automatically. On a freeway, ↑ drives to the next exit, and ← or → takes the exit ramp onto the cross street.
+Transporter drives to every hospital in `data/landmarks.json`. Outside Westminster the map carries the metro freeways and main roads (I-25, I-70, I-76, US-36 and the like, plus primary arterials) and every street within 1.2 km of each hospital. Editing `landmarks.json` triggers a map rebuild, so a new hospital gets its surrounding streets automatically. On a freeway, ↑ drives to the next exit, and ← or → takes the exit ramp onto the cross street.
 
 
 `data/landmarks.json` lists the hospitals used by Cardinal. All positions come from OpenStreetMap; the build prints the nearest OpenStreetMap hospital for each entry so you can check new ones.

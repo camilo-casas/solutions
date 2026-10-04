@@ -47,7 +47,7 @@ let keyHandler = null;
 export function onKeys(fn) {
   if (keyHandler) window.removeEventListener('keydown', keyHandler);
   keyHandler = (e) => {
-    if (e.target.closest('input, select, textarea')) return;
+    if (e.target?.closest?.('input, select, textarea')) return;
     fn(e);
   };
   window.addEventListener('keydown', keyHandler);

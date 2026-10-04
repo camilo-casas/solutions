@@ -59,6 +59,7 @@ function drive(root, ctx, mode) {
 
   // ---- Game state ---------------------------------------------------------
   let g = null;
+  let quiet = false; // true while the test hook previews moves
 
   /** Named-road neighbors of a node, for "is this an intersection?" */
   function namedDegree(n) {
@@ -67,11 +68,16 @@ function drive(root, ctx, mode) {
     for (const e of G.inc[n]) if (G.edges[e].name) seen.add(G.edges[e].from);
     return seen.size;
   }
-  // On freeways a "block" runs to the next exit ramp; elsewhere to the next intersection.
-  const FAST = new Set(['motorway', 'trunk']);
-  const hasExit = (n) => G.out[n].some((e) => !G.edges[e].name && G.ways[G.edges[e].way].cls === 'link');
-  const isStop = (n, cls) => n === g.target || n === g.start || namedDegree(n) >= 3 || namedDegree(n) <= 1
-    || (FAST.has(cls) && hasExit(n));
+  /** Distinct neighboring nodes over any road segment, named or not. */
+  function degree(n) {
+    const seen = new Set();
+    for (const e of G.out[n]) seen.add(G.edges[e].to);
+    for (const e of G.inc[n]) seen.add(G.edges[e].from);
+    return seen.size;
+  }
+  // A "block" ends wherever three or more segments meet: an intersection, a side
+  // street joined by an unnamed connector, or a freeway exit or entrance.
+  const isStop = (n) => n === g.target || n === g.start || degree(n) >= 3 || namedDegree(n) <= 1;
 
   /** Road segments leaving n: forward edges, plus reversed incoming edges when backing up. */
   function segmentsFrom(n, reverse) {
@@ -92,7 +98,7 @@ function drive(root, ctx, mode) {
     const segs = [first];
     let cur = first;
     let guard = 0;
-    while (!isStop(cur.to, G.ways[cur.way].cls) && guard++ < 2000) {
+    while (!isStop(cur.to) && guard++ < 2000) {
       const opts = segmentsFrom(cur.to, reverse).filter((s) => s.to !== cur.from);
       if (!opts.length) break;
       // Straightest wins, but stay on the same road: a ramp peeling off at a shallow angle is not "ahead".
@@ -115,8 +121,13 @@ function drive(root, ctx, mode) {
     let best = null;
     for (const o of turnOptions(n)) {
       const rel = angleDiff(g.heading, o.brg);
+      // Through a ramp or slip lane, the side is the way the ramp peels off, even
+      // when the road it reaches runs parallel (a freeway beside a frontage road).
+      const peel = o.via.length ? angleDiff(g.heading, bearing(G.pt(G.edges[o.via[0]].from), G.pt(G.edges[o.via[0]].to))) : rel;
+      let ok;
+      if (o.via.length && Math.abs(rel) <= 30) ok = side === 'left' ? peel < -5 : peel > 5;
       // Sharp turns up to a U-turn count, but a real side street always wins.
-      const ok = side === 'left' ? rel < -30 || rel > 175 : rel > 30;
+      else ok = side === 'left' ? rel < -30 || rel > 175 : rel > 30;
       if (!ok) continue;
       const score = Math.abs(Math.abs(rel) - 90) + (Math.abs(rel) > 150 ? 200 : 0);
       if (!best || score < best.score) best = { ...o, score };
@@ -272,6 +283,7 @@ function drive(root, ctx, mode) {
   // ---- Rendering ------------------------------------------------------------
   let msgTimer = 0;
   function flash(text) {
+    if (quiet) return;
     g.msg = text;
     render();
     clearTimeout(msgTimer);
@@ -295,7 +307,7 @@ function drive(root, ctx, mode) {
   }
 
   function render() {
-    if (!g) return;
+    if (!g || quiet) return;
     stage.replaceChildren();
     const p = g.done ? null : preview();
     const cross = streetsAt(g.node).filter((n) => nameKey(n) !== nameKey(g.street));
@@ -352,6 +364,7 @@ function drive(root, ctx, mode) {
 
   function finish(arrived) {
     g.done = true;
+    if (quiet) return;
     clearTimeout(msgTimer);
     g.msg = '';
     const ms = performance.now() - g.t0;
@@ -377,6 +390,27 @@ function drive(root, ctx, mode) {
   }
   const arrive = () => finish(true);
   const giveUp = () => finish(false);
+
+  // Test hook: automated tests set window.WFD_DEBUG to read the game state and
+  // preview where a sequence of moves would leave the truck, without making them.
+  if (window.WFD_DEBUG) {
+    const acts = { up: () => forward(), down: () => backward(), left: () => turn('left'), right: () => turn('right') };
+    window.WFD_DEBUG.drive = {
+      state: () => g,
+      graph: G,
+      peek(seq) {
+        const saved = { ...g, trail: g.trail.slice() };
+        quiet = true;
+        try {
+          for (const a of seq) { if (!g.done) acts[a](); }
+          return { node: g.node, done: g.done, moved: g.node !== saved.node || !!g.pending !== !!saved.pending };
+        } finally {
+          g = saved;
+          quiet = false;
+        }
+      },
+    };
+  }
 
   start();
   return { destroy: () => { clearTimeout(msgTimer); map.destroy(); } };
