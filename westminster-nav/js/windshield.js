@@ -124,6 +124,8 @@ export class Windshield {
 
   place([x, y], h) {
     this.cam = { x: x - BACK * Math.sin(h * RAD), y: y - BACK * Math.cos(h * RAD), h };
+    // Let the game move its map marker in step with the windshield.
+    this.onMove?.(this.scene.proj.inv([x, y]), h);
   }
 
   /**

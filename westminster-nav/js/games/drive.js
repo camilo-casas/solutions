@@ -361,18 +361,39 @@ function drive(root, ctx, mode) {
     if (showMap) drawMap();
   }
 
-  function drawMap() {
-    const markers = [
+  // Where the truck is drawn on the map: follows the windshield animation.
+  let truck = null; // { p: [lat, lon], h }
+  let lastFollow = 0;
+  const FOLLOW_WIDTH = 2400; // meters across when the map first opens
+
+  function mapMarkers(at) {
+    return [
       isT ? { p: G.pt(g.start), color: COLORS.dest, r: 7, label: ctx.addressLabel(g.from) } : { p: [g.station.lat, g.station.lon], color: COLORS.station, text: g.station.id, r: 9, label: g.station.name },
-      { p: g.done || prefs.hints ? (g.to.p) : null, color: isT ? COLORS.poi : COLORS.dest, r: 8, shape: isT ? 'square' : null, label: g.done || prefs.hints ? (isT ? g.to.name : ctx.addressLabel(g.to)) : '' },
-      { p: G.pt(g.node), color: COLORS.user, r: 8, heading: g.heading },
+      { p: g.done || prefs.hints ? g.to.p : null, color: isT ? COLORS.poi : COLORS.dest, r: 8, shape: isT ? 'square' : null, label: g.done || prefs.hints ? (isT ? g.to.name : ctx.addressLabel(g.to)) : '' },
+      { p: at.p, color: COLORS.user, r: 8, heading: at.h },
     ].filter((m) => m.p);
+  }
+
+  // Each windshield frame: move the truck marker and keep the map centered on it.
+  ws.onMove = (p, h) => {
+    truck = { p, h };
+    if (!g || g.done || quiet || !prefs.showMap) return;
+    const now = performance.now();
+    if (now - lastFollow < 30) return;
+    lastFollow = now;
+    map.set({ markers: mapMarkers(truck) });
+    map.follow(p);
+  };
+
+  function drawMap() {
+    const at = !g.done && truck ? truck : { p: G.pt(g.node), h: g.heading };
     const routes = [{ pts: g.trail, color: COLORS.user, width: 4 }];
     if (g.done) routes.unshift({ pts: G.pathPoints(g.best.path), color: COLORS.best, width: 6, alpha: 0.5 });
-    map.set({ routes, markers });
+    map.set({ routes, markers: mapMarkers(at) });
     if (g.done) map.fit([...g.trail, ...G.pathPoints(g.best.path)]);
-    else if (!g.fitted) { map.fit([G.pt(g.node), g.to.p], 60); g.fitted = true; }
+    else if (!g.fitted) { map.follow(at.p, FOLLOW_WIDTH); g.fitted = true; } else map.follow(at.p);
   }
+
 
   function finish(arrived) {
     g.done = true;

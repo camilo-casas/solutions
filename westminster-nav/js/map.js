@@ -29,7 +29,13 @@ export class CityMap {
     this.onclick = null;
     this.bind();
     this.ro = new ResizeObserver(() => {
-      if (this.pending) this.fitXY(...this.pending);
+      // A follow request made while hidden wins over the initial fit-to-city.
+      if (this.pendingFollow && this.canvas.getBoundingClientRect().width) {
+        const f = this.pendingFollow;
+        this.pendingFollow = null;
+        this.pending = null;
+        this.follow(...f);
+      } else if (this.pending) this.fitXY(...this.pending);
       else this.draw();
     });
     this.ro.observe(canvas);
@@ -48,6 +54,18 @@ export class CityMap {
     this.fitXY(pts, 10);
   }
 
+  /** Center on [lat, lon]; optionally set the zoom so the map spans `widthM` meters across. */
+  follow(latlon, widthM = null) {
+    const r = this.canvas.getBoundingClientRect();
+    if (!r.width) { this.pendingFollow = [latlon, widthM ?? this.pendingFollow?.[1] ?? null]; this.pending = null; return; }
+    this.pending = null;
+    const [x, y] = this.proj.fwd(latlon);
+    this.view.cx = x;
+    this.view.cy = y;
+    if (widthM) this.view.scale = r.width / widthM;
+    this.draw();
+  }
+
   /** Zoom to show [lat, lon] points. */
   fit(latlons, padPx = 40) {
     if (!latlons.length) return this.fitBoundary();
@@ -61,6 +79,7 @@ export class CityMap {
     const r = this.canvas.getBoundingClientRect();
     if (!r.width) { this.pending = [pts, padPx]; return; }
     this.pending = null;
+    this.pendingFollow = null;
     const w = Math.max(r.width, 100) - 2 * padPx;
     const h = Math.max(r.height, 100) - 2 * padPx;
     this.view.cx = (x0 + x1) / 2;
