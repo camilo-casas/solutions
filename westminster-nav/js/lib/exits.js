@@ -80,5 +80,8 @@ export function exitFor(ctx, node, firstEdge) {
   return freewayExits(ctx).get(node)?.find((x) => x.edge === firstEdge) || null;
 }
 
+/** "North", "East", ... for a bearing, the way guide signs say it. */
+export const dirWord = (b) => WORD[dir4(b)];
+
 /** "Exit 217" or "Exit". */
 export const exitTab = (x) => (x.ref ? `Exit ${x.ref}` : 'Exit');

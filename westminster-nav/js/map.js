@@ -25,7 +25,9 @@ export class CityMap {
     this.order = [...this.ways.keys()].sort((a, b) => (MAJOR.has(this.ways[a].cls) ? 1 : 0) - (MAJOR.has(this.ways[b].cls) ? 1 : 0));
     this.boundary = ctx.city.boundary.map((r) => r.map((p) => this.proj.fwd(p)));
     this.layers = { markers: [], routes: [], labels: false };
-    this.view = { cx: 0, cy: 0, scale: 0.05 };
+    // rot: the compass heading that points up the screen (0 = north up).
+    // anchorY: where the followed point sits, as a fraction of the height.
+    this.view = { cx: 0, cy: 0, scale: 0.05, rot: 0, anchorY: 0.5 };
     this.onclick = null;
     this.bind();
     this.ro = new ResizeObserver(() => {
@@ -54,8 +56,12 @@ export class CityMap {
     this.fitXY(pts, 10);
   }
 
-  /** Center on [lat, lon]; optionally set the zoom so the map spans `widthM` meters across. */
-  follow(latlon, widthM = null) {
+  /**
+   * Center on [lat, lon]; optionally set the zoom so the map spans `widthM` meters
+   * across, and turn it so `heading` (degrees) points up.
+   */
+  follow(latlon, widthM = null, heading = null) {
+    if (heading != null) this.view.rot = heading;
     const r = this.canvas.getBoundingClientRect();
     if (!r.width) { this.pendingFollow = [latlon, widthM ?? this.pendingFollow?.[1] ?? null]; this.pending = null; return; }
     this.pending = null;
@@ -63,6 +69,13 @@ export class CityMap {
     this.view.cx = x;
     this.view.cy = y;
     if (widthM) this.view.scale = r.width / widthM;
+    this.draw();
+  }
+
+  /** Heading-up or north-up, and where the followed point sits (0.5 = middle). */
+  orient({ heading = this.view.rot, anchorY = this.view.anchorY } = {}) {
+    this.view.rot = heading;
+    this.view.anchorY = anchorY;
     this.draw();
   }
 
@@ -82,6 +95,11 @@ export class CityMap {
     this.pendingFollow = null;
     const w = Math.max(r.width, 100) - 2 * padPx;
     const h = Math.max(r.height, 100) - 2 * padPx;
+    if (this.view.rot || this.view.anchorY !== 0.5) {
+      // Fitting shows the whole picture: north up, centered.
+      this.view.rot = 0;
+      this.view.anchorY = 0.5;
+    }
     this.view.cx = (x0 + x1) / 2;
     this.view.cy = (y0 + y1) / 2;
     this.view.scale = Math.min(w / Math.max(x1 - x0, 300), h / Math.max(y1 - y0, 300));
@@ -90,12 +108,24 @@ export class CityMap {
 
   toScreen(x, y) {
     const r = this.size;
-    return [r.w / 2 + (x - this.view.cx) * this.view.scale, r.h / 2 - (y - this.view.cy) * this.view.scale];
+    const v = this.view;
+    const dx = x - v.cx;
+    const dy = y - v.cy;
+    const a = (v.rot * Math.PI) / 180;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    return [r.w / 2 + (dx * c - dy * s) * v.scale, r.h * v.anchorY - (dx * s + dy * c) * v.scale];
   }
 
   toWorld(sx, sy) {
     const r = this.size;
-    return [this.view.cx + (sx - r.w / 2) / this.view.scale, this.view.cy - (sy - r.h / 2) / this.view.scale];
+    const v = this.view;
+    const u = (sx - r.w / 2) / v.scale;
+    const f = -(sy - r.h * v.anchorY) / v.scale;
+    const a = (v.rot * Math.PI) / 180;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    return [v.cx + u * c + f * s, v.cy - u * s + f * c];
   }
 
   bind() {
@@ -121,11 +151,11 @@ export class CityMap {
         this.view.scale = pinch.s * (Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d);
         moved += 10;
       } else if (pts.size === 1) {
-        const dx = e.offsetX - prev[0];
-        const dy = e.offsetY - prev[1];
-        moved += Math.abs(dx) + Math.abs(dy);
-        this.view.cx -= dx / this.view.scale;
-        this.view.cy += dy / this.view.scale;
+        moved += Math.abs(e.offsetX - prev[0]) + Math.abs(e.offsetY - prev[1]);
+        const a = this.toWorld(...prev);
+        const b = this.toWorld(e.offsetX, e.offsetY);
+        this.view.cx += a[0] - b[0];
+        this.view.cy += a[1] - b[1];
       }
       this.draw();
     });
@@ -236,6 +266,7 @@ export class CityMap {
     }
 
     if (this.layers.labels) this.paintLabels(g, col('--map-label'), col('--map-bg'));
+    if (this.view.rot) this.paintNorth(g, col('--map-label'), col('--map-bg'));
 
     // Markers.
     g.font = '600 12px system-ui, sans-serif';
@@ -244,7 +275,7 @@ export class CityMap {
       const [sx, sy] = this.toScreen(x, y);
       const r = m.r || 7;
       if (m.heading != null) {
-        const a = ((m.heading - 90) * Math.PI) / 180;
+        const a = ((m.heading - this.view.rot - 90) * Math.PI) / 180;
         g.beginPath();
         g.moveTo(sx + Math.cos(a) * (r + 12), sy + Math.sin(a) * (r + 12));
         g.lineTo(sx + Math.cos(a + 2.6) * (r + 2), sy + Math.sin(a + 2.6) * (r + 2));
@@ -277,6 +308,38 @@ export class CityMap {
         g.fillText(m.label, sx + r + 5, sy);
       }
     }
+  }
+
+  /** Turned map: a small north arrow in the lower left. */
+  paintNorth(g, fg, bg) {
+    const x = 26;
+    const y = this.size.h - 26;
+    const a = (-this.view.rot * Math.PI) / 180;
+    g.save();
+    g.beginPath();
+    g.arc(x, y, 17, 0, Math.PI * 2);
+    g.fillStyle = bg;
+    g.globalAlpha = 0.85;
+    g.fill();
+    g.globalAlpha = 1;
+    g.strokeStyle = fg;
+    g.lineWidth = 1;
+    g.stroke();
+    g.translate(x, y);
+    g.rotate(a);
+    g.beginPath();
+    g.moveTo(0, -13);
+    g.lineTo(5, 1);
+    g.lineTo(-5, 1);
+    g.closePath();
+    g.fillStyle = '#c1121f';
+    g.fill();
+    g.font = '700 10px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = fg;
+    g.fillText('N', 0, 8);
+    g.restore();
   }
 
   /** Join each street's way pieces end to end so labels can span many short pieces. */

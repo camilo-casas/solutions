@@ -10,7 +10,7 @@ import { shortName, nameKey } from '../lib/names.js';
 import { el, pick, onKeys, scoreBar, fmtTime } from '../ui.js';
 import { mapPanel } from '../map.js';
 import { Windshield } from '../windshield.js';
-import { freewayExits, exitFor, exitTab } from '../lib/exits.js';
+import { freewayExits, exitFor, exitTab, dirWord } from '../lib/exits.js';
 import * as store from '../store.js';
 import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime } from './common.js';
 
@@ -24,7 +24,7 @@ function drive(root, ctx, mode) {
   const G = ctx.graph;
   const isT = mode === 'transporter';
   const title = isT ? 'Transporter' : 'Responder';
-  const prefs = { showMap: false, hints: false, off: [], ...store.load(`${mode}:prefs`, {}) };
+  const prefs = { hints: false, off: [], ...store.load(`${mode}:prefs`, {}) };
 
   // Hospitals the street data reaches (others are outside the downloaded map).
   // A hospital counts only if its street connects to Westminster's road network.
@@ -61,14 +61,20 @@ function drive(root, ctx, mode) {
   const stage = el('div', { class: 'stage' });
   const { el: mapEl, map } = mapPanel(ctx, { labels: 'major' });
   const mapDest = el('div', { class: 'map-dest' });
-  const mapBox = el('div', { class: 'reveal hidden' }, mapDest, mapEl);
-  root.append(el('h1', { class: 'game-title' }, title), head, stage, mapBox);
+  const mapBox = el('div', { class: 'drive-map' }, mapDest, mapEl);
+  // The arrow buttons sit on the edges of both views, over the picture.
+  const wsPads = el('div', { class: 'edge-pads' });
+  const mapPads = el('div', { class: 'edge-pads' });
+  ws.el.append(wsPads);
+  mapEl.append(mapPads);
+  const views = el('div', { class: 'drive-views' }, ws.el, mapBox);
+  root.append(el('h1', { class: 'game-title' }, title), head, stage);
 
   const toggle = (key, label) => el('label', { class: 'inline' },
     el('input', { type: 'checkbox', checked: prefs[key], onchange: (e) => { prefs[key] = e.target.checked; store.save(`${mode}:prefs`, prefs); render(); } }),
     ` ${label}`);
   const renderHead = () => head.replaceChildren(...[
-    el('div', { class: 'row' }, isT ? null : picker.el, toggle('showMap', 'Show map'), toggle('hints', 'Hints')),
+    el('div', { class: 'row' }, isT ? null : picker.el, toggle('hints', 'Hints')),
     isT ? hospToggles() : null,
     isT && hospitals.length > reachable.length
       ? el('small', { class: 'muted' }, `Not drivable yet (no connected streets in the map data): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
@@ -259,7 +265,6 @@ function drive(root, ctx, mode) {
   // ---- Setup ----------------------------------------------------------------
   function start() {
     renderHead();
-    mapBox.classList.add('hidden');
     stage.replaceChildren();
     for (let tries = 0; tries < 20; tries++) {
       if (isT) {
@@ -335,15 +340,23 @@ function drive(root, ctx, mode) {
     const exitHere = (freewayExits(ctx).get(g.node) || []).filter((x) => Math.abs(angleDiff(g.heading, x.along)) <= 40);
     const turnLabel = (o) => {
       const x = o.via?.length ? exitFor(ctx, o.hop ? o.hop.to : g.node, o.via[0]) : null;
-      return x ? `${exitTab(x)} · ${o.name} ${CARDINAL_NAMES[toCardinal(o.brg)].replace(/^./, (c) => c.toUpperCase())}` : o.name;
+      return x ? `${exitTab(x)} · ${o.name} ${dirWord(o.brg)}` : o.name;
     };
     const at = exitHere.length
       ? ` · At ${exitHere.map((x) => `${exitTab(x)} (${x.names.join(', ') || x.dest})`).join(' & ')}`
       : cross.length ? ` · At ${cross.slice(0, 2).join(' & ')}` : '';
     const elapsed = (performance.now() - g.t0) / 1000;
     const pad = (dir, arrow, label, sub, enabled, fn) => el('button', {
-      class: `pad pad-${dir}`, disabled: !enabled, onclick: fn, 'aria-label': `${dir}: ${label}${sub ? `, ${sub}` : ''}`,
-    }, el('span', { class: 'pad-arrow' }, arrow), el('span', { class: 'pad-label' }, label), sub ? el('span', { class: 'pad-sub' }, sub) : null);
+      type: 'button', class: `edge-pad edge-${dir}`, disabled: !enabled, onclick: fn, title: `${label}: ${sub}`, 'aria-label': `${label}: ${sub}`,
+    }, el('span', { class: 'pad-arrow', 'aria-hidden': 'true' }, arrow), enabled ? el('span', { class: 'pad-sub' }, sub) : null);
+    const pads = () => (g.done ? [] : [
+      pad('up', '▲', 'Forward', p.ahead ? p.ahead.name : 'no road', !!p.ahead, forward),
+      pad('left', '◀', 'Left', p.left ? turnLabel(p.left) : '—', !!p.left, () => turn('left')),
+      pad('right', '▶', 'Right', p.right ? turnLabel(p.right) : '—', !!p.right, () => turn('right')),
+      pad('down', '▼', 'Back up', p.back ? 'Back up' : '—', p.back, backward),
+    ]);
+    wsPads.replaceChildren(...pads());
+    mapPads.replaceChildren(...pads());
 
     stage.append(...[
       el('div', { class: 'prompt drive-prompt' },
@@ -354,22 +367,15 @@ function drive(root, ctx, mode) {
         el('div', { class: 'face-big addr' }, isT ? g.to.name : ctx.addressLabel(g.to)),
         isT ? el('small', { class: 'muted' }, g.to.city) : null,
         prefs.hints ? el('small', { class: 'hint' }, `Destination: ${gridNote(ctx, g.to.p)}. It's ${CARDINAL_NAMES[toCardinal(bearing(G.pt(g.node), g.to.p))]} of you, ${(distance(G.pt(g.node), g.to.p) / 1609.344).toFixed(1)} mi straight-line.`) : null),
-      ws.el,
+      views,
       el('div', { class: 'trip-line' }, `${g.moves} moves · ${fmtTime(elapsed)}`, at),
-      g.done ? null : el('div', { class: 'dpad' },
-        pad('up', '▲', 'Forward', p.ahead ? p.ahead.name : 'no road', !!p.ahead, forward),
-        pad('left', '◀', 'Left', p.left ? turnLabel(p.left) : '—', !!p.left, () => turn('left')),
-        pad('right', '▶', 'Right', p.right ? turnLabel(p.right) : '—', !!p.right, () => turn('right')),
-        pad('down', '▼', 'Back up', p.back ? 'one block' : '—', p.back, backward)),
       g.msg ? el('div', { class: 'drive-msg', role: 'status' }, g.msg) : null,
       g.done ? null : el('div', { class: 'row end' },
         el('small', { class: 'muted' }, 'Keys: ↑ forward · ↓ back · ← → turn'),
         el('button', { class: 'btn', onclick: giveUp }, 'Show me the route')),
       g.result || null,
     ].filter(Boolean));
-    const showMap = prefs.showMap || g.done;
-    mapBox.classList.toggle('hidden', !showMap);
-    if (showMap) drawMap();
+    drawMap();
   }
 
   // Where the truck is drawn on the map: follows the windshield animation.
@@ -388,12 +394,12 @@ function drive(root, ctx, mode) {
   // Each windshield frame: move the truck marker and keep the map centered on it.
   ws.onMove = (p, h) => {
     truck = { p, h };
-    if (!g || g.done || quiet || !prefs.showMap) return;
+    if (!g || g.done || quiet) return;
     const now = performance.now();
     if (now - lastFollow < 30) return;
     lastFollow = now;
     map.set({ markers: mapMarkers(truck) });
-    map.follow(p);
+    map.follow(p, null, h);
   };
 
   function drawMap() {
@@ -405,8 +411,10 @@ function drive(root, ctx, mode) {
     const routes = [{ pts: g.trail, color: COLORS.user, width: 4 }];
     if (g.done) routes.unshift({ pts: G.pathPoints(g.best.path), color: COLORS.best, width: 6, alpha: 0.5 });
     map.set({ routes, markers: mapMarkers(at) });
+    // Heading-up while driving, with the truck low on the map so you see what's ahead.
+    // The finished call fits the whole drive, north up.
     if (g.done) map.fit([...g.trail, ...G.pathPoints(g.best.path)]);
-    else if (!g.fitted) { map.follow(at.p, FOLLOW_WIDTH); g.fitted = true; } else map.follow(at.p);
+    else if (!g.fitted) { map.orient({ anchorY: 0.66 }); map.follow(at.p, FOLLOW_WIDTH, at.h); g.fitted = true; } else map.follow(at.p, null, at.h);
   }
 
 

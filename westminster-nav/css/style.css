@@ -389,15 +389,39 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .sign.cross { background: #20563a; box-shadow: 0 0 0 2px #20563a; }
 .sign.cross b { font-size: clamp(14px, 3.8vw, 17px); }
 .trip { font: 500 13px var(--font-body); color: #cfc6bb; font-variant-numeric: tabular-nums; }
-.dpad { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-areas: ". up ." "left . right" ". down ."; gap: 8px; max-width: 420px; width: 100%; margin: 0 auto; }
-.pad { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 76px; padding: 6px; font: inherit; color: var(--text); background: var(--surface); border: 2px solid var(--border); border-radius: 12px; cursor: pointer; touch-action: manipulation; }
-.pad:hover:not(:disabled) { border-color: var(--accent); }
-.pad:active:not(:disabled) { background: var(--gold-soft); }
-.pad:disabled { opacity: 0.4; cursor: default; }
-.pad-up { grid-area: up; } .pad-left { grid-area: left; } .pad-right { grid-area: right; } .pad-down { grid-area: down; }
-.pad-arrow { font-size: 22px; line-height: 1; color: var(--accent); }
-.pad-label { font: 700 13px var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; }
-.pad-sub { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
+/* Responder/Transporter: windshield and map side by side (stacked on phones),
+   with see-through arrow buttons on the edges of each view. */
+.drive-views { display: grid; gap: 12px; }
+.drive-map { display: flex; flex-direction: column; min-width: 0; }
+.drive-map .map-canvas { height: min(52vh, 420px); }
+@media (min-width: 760px) {
+  .drive-views { grid-template-columns: 1.45fr 1fr; }
+  .drive-views .windshield { aspect-ratio: auto; height: min(58vh, 440px); max-height: none; }
+  .drive-map { height: min(58vh, 440px); }
+  .drive-map .map-wrap { flex: 1; min-height: 0; }
+  .drive-map .map-canvas { height: 100%; }
+}
+.edge-pads { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.edge-pad { position: absolute; pointer-events: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 52px; min-height: 46px; max-width: 30%; padding: 5px 10px; font: inherit; color: #fff; background: rgba(20, 17, 15, 0.36); border: 1.5px solid rgba(255, 255, 255, 0.55); border-radius: 12px; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); cursor: pointer; touch-action: manipulation; transition: background 0.12s, border-color 0.12s; }
+.edge-pad:hover:not(:disabled) { background: rgba(20, 17, 15, 0.55); border-color: var(--gold); }
+.edge-pad:active:not(:disabled) { background: rgba(242, 183, 5, 0.5); }
+.edge-pad:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.edge-pad:disabled { opacity: 0.28; cursor: default; }
+.edge-pad .pad-arrow { font-size: 20px; line-height: 1; color: var(--gold); }
+.edge-pad .pad-sub { font: 600 12px var(--font-body); line-height: 1.15; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.edge-up { top: 8px; left: 50%; transform: translateX(-50%); }
+.edge-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.edge-left { left: 8px; top: 50%; transform: translateY(-50%); }
+.edge-right { right: 8px; top: 50%; transform: translateY(-50%); }
+.edge-up:active:not(:disabled), .edge-down:active:not(:disabled) { transform: translateX(-50%) scale(0.96); }
+.edge-left:active:not(:disabled), .edge-right:active:not(:disabled) { transform: translateY(-50%) scale(0.96); }
+/* Windshield: clear of the heading readout, the pillars and the hood. */
+.windshield .edge-up { top: 52px; }
+.windshield .edge-down { bottom: 15%; }
+.windshield .edge-left { left: 5.5%; }
+.windshield .edge-right { right: 5.5%; }
+/* Map: the zoom tools sit top right, so the right button stays mid-height. */
+.map-wrap .edge-pads { z-index: 1; }
 .drive-msg { background: var(--meh-bg); border: 1px solid var(--meh); border-radius: 10px; padding: 8px 12px; font-weight: 600; text-align: center; }
 @media (max-width: 420px) { .dash { grid-template-columns: 1fr; justify-items: stretch; } .dash-left { flex-direction: row; justify-content: center; gap: 12px; } }
 
@@ -451,3 +475,11 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .map-dest-label { font: 700 11px var(--font-body); text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); }
 .map-dest b { font: 700 clamp(17px, 4.4vw, 21px) var(--font-display); }
 .map-dest .muted { color: #cfc6bb; }
+@media (max-width: 520px) {
+  .edge-pad { min-width: 44px; min-height: 40px; max-width: 28%; padding: 3px 7px; border-radius: 10px; }
+  .edge-pad .pad-arrow { font-size: 16px; }
+  .edge-pad .pad-sub { font-size: 11px; }
+  .windshield .edge-up { top: 62px; }
+  .windshield .edge-left { left: 4%; }
+  .windshield .edge-right { right: 4%; }
+}
