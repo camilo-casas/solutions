@@ -14,6 +14,7 @@ const MODES = [
   { id: 'name2block', label: 'Name → Block', hint: 'What hundred block is this street?' },
   { id: 'block2name', label: 'Block → Name', hint: 'Which street sits on this block?' },
   { id: 'decode', label: 'Address → Cross streets', hint: 'Which two streets is this avenue address between?' },
+  { id: 'westeast', label: 'West or East', hint: 'Is the second street west or east of the first? Higher numbers are further west.' },
   { id: 'side', label: 'Street side', hint: 'Which side of the street is it on? Even = south or east, odd = north or west.' },
 ];
 const DECKS = [
@@ -306,6 +307,7 @@ export function flashcards(root, ctx) {
     }
 
     if (prefs.mode === 'side') { streetSide(s); return; }
+    if (prefs.mode === 'westeast') { westOrEast(s); return; }
 
     // decode: "3650 W 88th Ave"
     const nextS = STREETS[STREETS.indexOf(s) + 1];
@@ -328,6 +330,60 @@ export function flashcards(root, ctx) {
       choiceButtons(opts, opts.indexOf(correct), (ok, ms) => stage.append(result(ok, ms, s,
         el('p', {}, `${num} sits between ${s.name} (${s.block}) and ${nextS.name} (${nextS.block}).`)))),
     );
+  }
+
+  // West or East: is the second street west or east of the first?
+  function westOrEast(a) {
+    // A partner from the same deck: usually close by (harder), sometimes anywhere.
+    const blocks = (x) => [x.block, ...x.also];
+    const clear = (x) => x !== a && blocks(x).every((bx) => blocks(a).every((ba) => (bx > ba) === (x.block > a.block) && bx !== ba));
+    const p = pool().filter(clear);
+    const near = p.filter((x) => Math.abs(x.block - a.block) <= 500);
+    const list = near.length && Math.random() < 0.6 ? near : p;
+    if (!list.length) { stage.append(el('div', { class: 'panel' }, 'Pick a bigger deck to play West or East.')); return; }
+    const b = list[Math.floor(Math.random() * list.length)];
+    const truth = b.block > a.block ? 'west' : 'east';
+    const t0 = performance.now();
+    let done = false;
+    const btns = {};
+    const answer = (dir) => {
+      if (done) return;
+      done = true;
+      const ok = dir === truth;
+      Object.entries(btns).forEach(([k, btn]) => {
+        btn.disabled = true;
+        if (k === truth) btn.classList.add('right');
+        else if (k === dir) btn.classList.add('wrong');
+      });
+      const ms = performance.now() - t0;
+      const points = ok ? 10 + Math.max(0, Math.round(5 - ms / 1000)) : 0;
+      store.record('flashcards', ok ? 1 : 0, points, ms);
+      setBox(a, ok);
+      renderHead();
+      const gap = Math.abs(b.block - a.block) / 100;
+      const miles = (Math.abs(b.block - a.block) / 1600).toFixed(1);
+      stage.append(el('div', { class: `verdict ${ok ? 'good' : 'bad'}` },
+        el('b', {}, ok ? `Correct: ${truth} (+${points})` : `It's ${truth}`),
+        el('p', {}, `${b.name} (${b.block}) is ${gap} block${gap === 1 ? '' : 's'} ${truth} of ${a.name} (${a.block}), about ${miles} mi. Bigger number = further west.`),
+        el('div', { class: 'ladder' },
+          ...[a, b].sort((x, y) => y.block - x.block).map((x) => el('span', { class: x === b ? 'here' : '' }, `${x.block} ${x.name}`))),
+        el('small', { class: 'muted' }, 'West ◀ ··· ▶ East'),
+        el('button', { class: 'btn primary', onclick: ask }, 'Next ↵')));
+    };
+    btns.west = el('button', { class: 'btn big', onclick: () => answer('west') }, '◀ WEST');
+    btns.east = el('button', { class: 'btn big', onclick: () => answer('east') }, 'EAST ▶');
+    stage.append(
+      el('div', { class: 'prompt' },
+        el('div', { class: 'face-sub' }, 'Starting on'),
+        el('div', { class: 'face-mid' }, a.name, a.alias ? ` (${a.alias})` : ''),
+        el('div', { class: 'face-sub' }, 'is this street west or east of it?'),
+        el('div', { class: 'face-big' }, b.name, b.alias ? el('span', { class: 'alias' }, ` (${b.alias})`) : null)),
+      el('div', { class: 'lr' }, btns.west, btns.east));
+    onKeys((e) => {
+      if (!done && (e.key === 'ArrowLeft' || e.key === 'a')) { e.preventDefault(); answer('west'); }
+      else if (!done && (e.key === 'ArrowRight' || e.key === 'd')) { e.preventDefault(); answer('east'); }
+      else if ((e.key === 'Enter' || e.key === ' ') && done) { e.preventDefault(); ask(); }
+    });
   }
 
   // Street side: South and East sides are even, North and West sides are odd.

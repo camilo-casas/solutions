@@ -444,3 +444,5 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .poster-text { font-size: 17px; margin: 12px 2px 4px; }
 .poster-pegs { font-size: 14px; margin: 0 2px 12px; }
 .hook-img { width: 56px; height: 56px; flex: none; border-radius: 10px; background: #fff8e1; border: 2px solid var(--gold); }
+.lr .btn.right { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.lr .btn.wrong { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
