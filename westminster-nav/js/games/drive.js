@@ -677,7 +677,7 @@ function drive(root, ctx, mode) {
     if (!g.pending) {
       const left = opt('left');
       const right = opt('right');
-      if (left || right) list.push({ steps: 0, here: true, dist: g.dist - g.turnDist, street: g.street, cross: [], left, right });
+      if (left || right) list.push({ steps: 0, here: true, dist: g.dist - g.turnDist, street: g.street, cross: streetsAt(g.node).filter((n) => nameKey(n) !== nameKey(g.street)), left, right });
     }
     quiet = true;
     try {
@@ -713,6 +713,7 @@ function drive(root, ctx, mode) {
   }
 
   let tbtKey = '';
+  let tbtArrived = false; // just used "Drive to it": keep that corner selected
   function renderTurnByTurn() {
     tbt.hidden = g.done;
     if (g.done) { tbtKey = ''; return; }
@@ -768,7 +769,7 @@ function drive(root, ctx, mode) {
     };
     bLeft.onclick = () => cur && driveAhead(cur, 'left');
     bRight.onclick = () => cur && driveAhead(cur, 'right');
-    bGo.onclick = () => cur && driveAhead(cur, null);
+    bGo.onclick = () => { if (!cur) return; tbtArrived = true; driveAhead(cur, null); };
     tbt.replaceChildren(
       el('h3', {}, 'Turn-by-turn'),
       el('p', { class: 'muted small' }, `On ${g.pending ? `your turn onto ${g.pending.name}` : g.street || 'an unnamed road'}, heading ${CARDINAL_NAMES[toCardinal(g.heading)]}. Pick an intersection ahead, or type the street you'll turn onto.`),
@@ -777,7 +778,17 @@ function drive(root, ctx, mode) {
         el('label', {}, el('span', { class: 'deck-label' }, 'Next street'), input, dl)),
       el('div', { class: 'row tbt-actions' }, bLeft, bGo, bRight),
       note);
-    update();
+    // After "Drive to it", the intersection you drove to is "Here": leave it
+    // picked so Turn left / Turn right are one tap away.
+    if (tbtArrived && list[0]?.here) {
+      sel.value = '0';
+      cur = list[0];
+      update();
+      const ready = [bLeft, bRight].filter((b) => !b.disabled);
+      if (ready.length) ready[0].focus({ preventScroll: true });
+      note.textContent = `You're at ${list[0].cross?.length ? list[0].cross.join(' & ') : 'the intersection'}: turn ${ready.length === 2 ? 'left or right' : ready[0] === bLeft ? 'left' : ready[0] === bRight ? 'right' : 'here'}.`;
+    } else update();
+    tbtArrived = false;
   }
 
   function render() {
