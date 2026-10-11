@@ -513,3 +513,4 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .tbt-actions .btn { min-height: 44px; overflow-wrap: anywhere; }
 .tbt-actions .btn:disabled { opacity: 0.45; }
 @media (max-width: 520px) { .tbt-actions { grid-template-columns: 1fr 1fr; } .tbt-actions .btn:nth-child(2) { grid-column: 1 / -1; order: 3; } }
+.tbt-dest { border-bottom: 2px solid var(--gold); border-radius: var(--radius); }

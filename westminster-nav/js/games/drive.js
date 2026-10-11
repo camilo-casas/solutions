@@ -772,6 +772,10 @@ function drive(root, ctx, mode) {
     bGo.onclick = () => { if (!cur) return; tbtArrived = true; driveAhead(cur, null); };
     tbt.replaceChildren(
       el('h3', {}, 'Turn-by-turn'),
+      el('div', { class: 'map-dest tbt-dest' },
+        el('span', { class: 'map-dest-label' }, isT ? 'Transport to' : 'Responding to'),
+        el('b', {}, isT ? g.to.name : ctx.addressLabel(g.to)),
+        isT && g.to.city ? el('span', { class: 'muted' }, ` · ${g.to.city}`) : null),
       el('p', { class: 'muted small' }, `On ${g.pending ? `your turn onto ${g.pending.name}` : g.street || 'an unnamed road'}, heading ${CARDINAL_NAMES[toCardinal(g.heading)]}. Pick an intersection ahead, or type the street you'll turn onto.`),
       el('div', { class: 'tbt-grid' },
         el('label', {}, el('span', { class: 'deck-label' }, 'Upcoming intersections'), sel),
