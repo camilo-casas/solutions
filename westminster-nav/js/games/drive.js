@@ -357,17 +357,22 @@ function drive(root, ctx, mode) {
    */
   function rampTurn(side) {
     const n = g.node;
+    if (!onFreeway()) return null;
+    // Which side a ramp peels off: against the freeway's own continuation here.
     const arr = G.inc[n].find((e) => G.edges[e].from === g.prev);
-    if (arr === undefined || !/motorway|trunk/.test(G.ways[G.edges[arr].way].cls)) return null;
+    const own = G.out[n].filter((e) => G.edges[e].key === G.edges[arr].key)
+      .sort((a, b) => Math.abs(angleDiff(g.heading, G.headingOut(a))) - Math.abs(angleDiff(g.heading, G.headingOut(b))))[0];
+    const along = own !== undefined ? bearing(G.pt(G.edges[own].from), G.pt(G.edges[own].to)) : g.heading;
     let best = null;
     for (const id of G.out[n]) {
       const e = G.edges[id];
       if (e.name || G.ways[e.way].cls !== 'link') continue;
-      let r = angleDiff(g.heading, bearing(G.pt(e.from), G.pt(e.to)));
-      if (Math.abs(r) < 2) r = angleDiff(g.heading, G.headingOut(id));
+      let r = angleDiff(along, bearing(G.pt(e.from), G.pt(e.to)));
+      if (Math.abs(r) < 2) r = angleDiff(own !== undefined ? G.headingOut(own) : g.heading, G.headingOut(id));
       if (Math.abs(r) < 1 || (side === 'left') !== (r < 0)) continue;
       const x = exitFor(ctx, n, id);
-      const c = { via: [], edge: id, brg: G.headingOut(id), name: x ? `${exitTab(x)} ramp` : 'Exit ramp', score: Math.abs(r) };
+      const where = x ? (x.names.join(' / ') || x.dest) : '';
+      const c = { via: [], edge: id, brg: G.headingOut(id), name: x ? `${exitTab(x)}${where ? ` · ${where}` : ''}` : 'Exit ramp', ramp: true, score: Math.abs(r) };
       if (!best || c.score < best.score) best = c;
     }
     return best;
@@ -406,7 +411,24 @@ function drive(root, ctx, mode) {
     return best;
   }
 
+  /**
+   * On a freeway (arrived on a motorway, or on a trunk road at a spot with no
+   * cross street) with an exit ramp leaving here.
+   */
+  function onFreeway() {
+    const n = g.node;
+    const arr = G.inc[n].find((e) => G.edges[e].from === g.prev);
+    if (arr === undefined) return false;
+    const cls = G.ways[G.edges[arr].way].cls;
+    if (cls !== 'motorway' && cls !== 'trunk') return false;
+    if (cls === 'trunk' && [...G.out[n], ...G.inc[n]].some((e) => G.edges[e].name && G.edges[e].key !== G.edges[arr].key)) return false;
+    return G.out[n].some((e) => !G.edges[e].name && G.ways[G.edges[e].way].cls === 'link');
+  }
+
   function chooseTurn(side) {
+    // Freeway exits: the side the ramp peels off takes the ramp; pick the street
+    // at the bottom of the ramp, like a real exit.
+    if (onFreeway()) return rampTurn(side) || forkTurn(side);
     const fork = forkTurn(side);
     if (fork) return fork;
     const cross = crossTurn(g.node, side);
