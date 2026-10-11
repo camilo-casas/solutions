@@ -454,7 +454,7 @@ export function flashcards(root, ctx) {
         el('b', {}, ok ? `Correct: ${NAMES[truth]} side (+${points})` : `It's the ${NAMES[truth]} side`),
         el('p', {}, `${num} is ${even ? 'even' : 'odd'}, and ${even ? 'even numbers are on the south and east sides' : 'odd numbers are on the north and west sides'}. ${where}`),
         el('div', { class: 'memory' }, el('div', { class: 'hook' }, el('span', { class: 'mem-label' }, 'Remember'),
-          'Odd ones go up and left: North and West, like the top-left of a map. Evens settle down and right: South and East.')),
+          'NOW: North, Odd, West. SEE: South, Even, East.')),
         el('button', { class: 'btn primary', onclick: ask }, 'Next ↵')));
     };
     for (const c of ['N', 'E', 'S', 'W']) btns[c] = el('button', { class: 'rose-btn', onclick: () => answer(c) }, NAMES[c]);

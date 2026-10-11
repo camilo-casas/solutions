@@ -7,6 +7,7 @@ import * as store from './store.js';
 import { flashcards } from './games/flashcards.js';
 import { turnSignal } from './games/turnSignal.js';
 import { cardinal } from './games/cardinal.js';
+import { streetSide } from './games/streetSide.js';
 import { responder, transporter } from './games/drive.js';
 import { setup } from './games/setup.js';
 import { splash, scores } from './games/players.js';
@@ -14,6 +15,7 @@ import * as board from './scoreboard.js';
 
 const GAMES = [
   { id: 'flashcards', name: 'Rotations', icon: '🗂️', blurb: 'Learn the 18 major streets, then all 132, with a memory hook for every street and number.', view: flashcards },
+  { id: 'side', name: 'Street Side', icon: '🏠', blurb: 'A real Westminster address: is it on the north, south, east or west side of the street? NOW / SEE.', view: streetSide },
   { id: 'turn', name: 'Turn Signal', icon: '↔️', blurb: 'Station plus an address: do you turn left or right out of the bay?', view: turnSignal },
   { id: 'cardinal', name: 'Cardinal', icon: '🧭', blurb: 'From an address, which way is the hospital, station or landmark?', view: cardinal },
   { id: 'responder', name: 'Responder', icon: '🚒', blurb: 'Drive from the station to the address block by block with the arrow keys. Scored against the fastest route.', view: responder },
@@ -82,7 +84,9 @@ function home(root, ctx) {
       el('h3', {}, 'How the grid works'),
       el('p', {}, 'Avenues run east to west and are numbered: an address on a north-south street tells you the avenue (8732 Lowell = between 87th and 88th). ',
         'Names run north to south in alphabetical rotations: an address on an avenue tells you the cross street (3650 W 88th = between Lowell (3600) and Meade (3700)). ',
-        'The bold anchor streets come every 800 numbers, about half a mile.')),
+        'The bold anchor streets come every 800 numbers, about half a mile.'),
+      el('p', {}, el('b', {}, 'Which side of the street: '), 'odd numbers are on the north and west sides, even numbers on the south and east. Remember ',
+        el('b', {}, 'NOW'), ' (North, Odd, West) and ', el('b', {}, 'SEE'), ' (South, Even, East).')),
     el('p', { class: 'foot' },
       el('a', { href: '#/setup' }, 'Station setup'), ' · ',
       el('a', { href: '#/scores' }, 'Scoreboard'), ' · ',

@@ -9,6 +9,7 @@ const COMPASS = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy=
 const GAME_TABS = [
   { id: 'all', label: 'Overall' },
   { id: 'flashcards', label: 'Rotations' },
+  { id: 'side', label: 'Street Side' },
   { id: 'turn', label: 'Turn Signal' },
   { id: 'cardinal', label: 'Cardinal' },
   { id: 'responder', label: 'Responder' },
