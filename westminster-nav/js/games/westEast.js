@@ -71,11 +71,12 @@ export function westEast(root, ctx) {
     btns.west = el('button', { class: 'btn big', onclick: () => answer('west') }, '◀ WEST');
     btns.east = el('button', { class: 'btn big', onclick: () => answer('east') }, 'EAST ▶');
     stage.append(
-      el('div', { class: 'prompt' },
+      el('div', { class: 'prompt we-prompt' },
         el('div', { class: 'face-sub' }, 'Starting on'),
-        el('div', { class: 'face-mid' }, a.name, a.alias ? ` (${a.alias})` : ''),
-        el('div', { class: 'face-sub' }, 'is this street west or east of it?'),
-        el('div', { class: 'face-big' }, b.name, b.alias ? el('span', { class: 'alias' }, ` (${b.alias})`) : null)),
+        el('div', { class: 'face-big we-a' }, a.name, a.alias ? el('span', { class: 'alias' }, ` (${a.alias})`) : null),
+        el('div', { class: 'face-sub' }, 'is'),
+        el('div', { class: 'face-big we-b' }, b.name, b.alias ? el('span', { class: 'alias' }, ` (${b.alias})`) : null),
+        el('div', { class: 'face-sub' }, 'west or east?')),
       el('div', { class: 'lr' }, btns.west, btns.east));
     onKeys((e) => {
       if (!done && (e.key === 'ArrowLeft' || e.key === 'a')) { e.preventDefault(); answer('west'); }
