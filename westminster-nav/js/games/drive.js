@@ -1084,6 +1084,7 @@ function drive(root, ctx, mode) {
       state: () => g,
       graph: G,
       ctx,
+      ws,
       ahead: () => lookAhead(),
       peek(seq) {
         const saved = { ...g, trail: g.trail.slice() };

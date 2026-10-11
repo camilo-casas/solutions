@@ -8,6 +8,7 @@ import { shortName, nameKey } from './lib/names.js';
 import { el } from './ui.js';
 import { freewayExits, exitTab } from './lib/exits.js';
 import { streetBlock } from './lib/streetBlock.js';
+import { SILHOUETTES, facesOf } from './lib/silhouettes.js';
 
 const RAD = Math.PI / 180;
 const FAR = 750; // meters drawn
@@ -26,6 +27,11 @@ const TOWERS = [
   [-0.3, 0.07, 0.78], [-0.18, 0.1, 1.0], [-0.04, 0.08, 0.86], [0.1, 0.11, 0.95], [0.24, 0.07, 0.7],
   [0.36, 0.09, 0.82], [0.5, 0.06, 0.6], [0.62, 0.08, 0.48], [0.76, 0.07, 0.4], [0.9, 0.06, 0.3],
 ];
+// Reference landmarks (Bell Tower, Castle): true size within MARK_GROW meters,
+// then scaled up with distance so they keep a readable size out to MARK_RANGE.
+const MARK_GROW = 320;
+const MARK_RANGE = 14000;
+const SUN = [-0.45, -0.55, 0.7]; // toward the sun: southwest, fairly high
 
 // ---- Scene data, built once per city and cached on the shared context ------
 function buildScene(ctx) {
@@ -81,7 +87,16 @@ function buildScene(ctx) {
     // 6 m past the gore, 11 m out to the ramp's side.
     return { ...x, key: nameKey(x.freeway), sx: x0 + 6 * Math.sin(a) + s * 11 * Math.cos(a), sy: y0 + 6 * Math.cos(a) - s * 11 * Math.sin(a) };
   });
-  return { proj, cells, xy, segs, exits };
+  const marks = SILHOUETTES.map((m) => {
+    const [x, y] = proj.fwd(m.p);
+    const { faces, top } = facesOf(m);
+    for (const f of faces) {
+      f.center = [0, 1, 2].map((k) => f.pts.reduce((t, p) => t + p[k], 0) / f.pts.length);
+      f.light = 0.72 + 0.28 * Math.max(0, f.normal[0] * SUN[0] + f.normal[1] * SUN[1] + f.normal[2] * SUN[2]);
+    }
+    return { ...m, x, y, faces, top };
+  });
+  return { proj, cells, xy, segs, exits, marks };
 }
 
 export class Windshield {
@@ -315,6 +330,8 @@ export class Windshield {
       poly([cam(s.ax + nx, s.ay + ny, 0.02), cam(s.bx + nx, s.by + ny, 0.02), cam(s.bx - nx, s.by - ny, 0.02), cam(s.ax - nx, s.ay - ny, 0.02)], mix('#e0b83a', fog(z)));
     }
 
+    this.paintLandmarks(g, cam, scr);
+
     // Destination beacon.
     if (this.target) {
       const [tx, ty] = this.target.p;
@@ -383,6 +400,110 @@ export class Windshield {
       const top = HZ - ht * tall;
       g.fillRect(x - bw / 2, top, bw, HZ - top + 1);
     }
+  }
+
+  /** The Bell Tower and the Castle as small 3D models, standing where they really are. */
+  paintLandmarks(g, cam, scr) {
+    const { x: cx, y: cy } = this.cam;
+    const shade = (hex, light, haze) => {
+      const n = parseInt(hex.slice(1), 16);
+      const sky = [196, 214, 232];
+      const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, k) => Math.round(v * light + (sky[k] - v * light) * haze));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    };
+    const path = (pts) => {
+      const c = clip(pts);
+      if (c.length < 3) return false;
+      g.beginPath();
+      c.forEach((p, i) => { const [sx, sy] = scr(p); if (i) g.lineTo(sx, sy); else g.moveTo(sx, sy); });
+      g.closePath();
+      return true;
+    };
+    const line = (a, b) => {
+      const l = clipLine(a, b);
+      if (!l) return;
+      const [ax, ay] = scr(l[0]);
+      const [bx, by] = scr(l[1]);
+      g.moveTo(ax, ay);
+      g.lineTo(bx, by);
+    };
+    const shown = this.scene.marks
+      .map((m) => ({ m, dist: Math.hypot(m.x - cx, m.y - cy) }))
+      .filter(({ m, dist }) => dist < MARK_RANGE && cam(m.x, m.y)[2] > -60)
+      .sort((a, b) => b.dist - a.dist);
+    const tags = [];
+    for (const { m, dist } of shown) {
+      const k = Math.max(1, dist / MARK_GROW);
+      const haze = Math.min(0.55, dist / 16000);
+      const at = ([e, n, u]) => cam(m.x + k * e, m.y + k * n, k * u);
+      const faces = [];
+      for (const f of m.faces) {
+        // The models are closed shapes: skip the faces turned away from the driver.
+        const [e, n, u] = f.center;
+        const toCam = [cx - (m.x + k * e), cy - (m.y + k * n), CAM_H - k * u];
+        if (f.normal[0] * toCam[0] + f.normal[1] * toCam[1] + f.normal[2] * toCam[2] <= 0) continue;
+        faces.push({ f, z: at(f.center)[2] });
+      }
+      // Far faces first; decals (clock faces) last, on top of their wall.
+      faces.sort((a, b) => (a.f.flat - b.f.flat) || (b.z - a.z));
+      g.save();
+      g.globalAlpha = Math.min(1, (MARK_RANGE - dist) / 2500);
+      for (const { f } of faces) {
+        const pts = f.pts.map(at);
+        if (!path(pts)) continue;
+        if (f.mesh) {
+          // Open steel mesh: see-through, with a lattice.
+          const a = g.globalAlpha;
+          g.globalAlpha = a * 0.45;
+          g.fillStyle = shade(f.color, f.light, haze);
+          g.fill();
+          g.globalAlpha = a;
+          g.strokeStyle = shade(f.color, f.light * 0.9, haze);
+          g.lineWidth = Math.max(0.5, Math.min(1.5, 400 / dist));
+          g.stroke();
+          const [p0, p1, apex] = f.pts;
+          g.beginPath();
+          for (let i = 1; i < 4; i++) {
+            const t = i / 4;
+            const b = p0.map((v, j) => v + (p1[j] - v) * t);
+            line(at(b), at(apex));
+            const l0 = p0.map((v, j) => v + (apex[j] - v) * t);
+            const l1 = p1.map((v, j) => v + (apex[j] - v) * t);
+            line(at(l0), at(l1));
+          }
+          g.stroke();
+          continue;
+        }
+        g.fillStyle = shade(f.color, f.light, haze);
+        g.fill();
+        if (f.flat && dist < 2500) { g.strokeStyle = shade('#3a3a3a', 1, haze); g.lineWidth = 1; g.stroke(); }
+      }
+      // A small name tag above, so a new driver knows what they're looking at.
+      if (dist > 120) {
+        const top = cam(m.x, m.y, k * m.top + 4 * k);
+        if (top[2] > NEAR) tags.push({ at: scr(top), text: m.label, dist, alpha: g.globalAlpha });
+      }
+      g.restore();
+    }
+    // Nearest name first; one that would overlap another moves up a line.
+    g.save();
+    g.font = '600 11px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'bottom';
+    g.lineWidth = 3;
+    const placed = [];
+    for (const t of tags.sort((a, b) => a.dist - b.dist)) {
+      const w = g.measureText(t.text).width + 6;
+      let [x, y] = t.at;
+      while (placed.some((q) => Math.abs(q.x - x) < (q.w + w) / 2 && Math.abs(q.y - y) < 13)) y -= 13;
+      placed.push({ x, y, w });
+      g.globalAlpha = t.alpha;
+      g.strokeStyle = 'rgba(255,255,255,0.75)';
+      g.strokeText(t.text, x, y);
+      g.fillStyle = 'rgba(30,40,55,0.9)';
+      g.fillText(t.text, x, y);
+    }
+    g.restore();
   }
 
   paintMountains(g, W, HZ, F, h) {
