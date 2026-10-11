@@ -112,7 +112,10 @@ function drive(root, ctx, mode) {
   // into two one-way roadways or joins back up, and past on-ramps merging in.
   // Backing up (no `cur`) stops wherever three or more segments meet.
   const isStop = (n, cur = null) => {
-    if (n === g.target || n === g.start || namedDegree(n) <= 1) return true;
+    if (n === g.target || n === g.start) return true;
+    // On a named street, a node with no other named neighbor is its end. On a
+    // ramp or connector (unnamed) that test means nothing: keep rolling.
+    if ((!cur || cur.name) && namedDegree(n) <= 1) return true;
     if (!cur) return degree(n) >= 3;
     // Any other named street here is an intersection, even one you can't turn onto directly.
     const mineKey = G.edges[cur.id]?.key ?? nameKey(cur.name);
@@ -190,7 +193,34 @@ function drive(root, ctx, mode) {
     return segs.map((s) => ({ ...s, brg: bearing(G.pt(s.from), G.pt(s.to)) }));
   }
 
-  const aheadScore = (x) => Math.abs(angleDiff(g.heading, x.brg)) - (nameKey(x.name) === nameKey(g.street) ? 10 : 0) + (!x.name ? 40 : 0);
+  // The map has short stubs that split off a road and go nowhere (a turn bay or a
+  // driveway carrying the road's name). "Straight on" never means one of those.
+  const stubCache = new Map();
+  function deadEnd(x) {
+    if (x.to === g.target) return false;
+    const k = `${x.from}>${x.to}`;
+    if (stubCache.has(k)) return stubCache.get(k);
+    let far = x.len;
+    const seen = new Set([x.from, x.to]);
+    const q = [{ n: x.to, len: x.len }];
+    while (q.length && far < 300) {
+      const { n, len } = q.shift();
+      for (const e of G.out[n]) {
+        const y = G.edges[e];
+        if (seen.has(y.to)) continue;
+        seen.add(y.to);
+        far = Math.max(far, len + y.len);
+        if (y.to === g.target) far = 1e9;
+        q.push({ n: y.to, len: len + y.len });
+      }
+    }
+    const stub = far < 300;
+    stubCache.set(k, stub);
+    return stub;
+  }
+  const stubPenalty = (x) => (deadEnd(x) ? 90 : 0);
+
+  const aheadScore = (x) => Math.abs(angleDiff(g.heading, x.brg)) - (nameKey(x.name) === nameKey(g.street) ? 10 : 0) + (!x.name ? 40 : 0) + stubPenalty(x);
 
   /** Walk from `first` (a segment) to the next intersection. Returns the segments walked. */
   function walkBlock(first, reverse) {
@@ -201,7 +231,7 @@ function drive(root, ctx, mode) {
       const opts = segmentsFrom(cur.to, reverse).filter((s) => s.to !== cur.from);
       if (!opts.length) break;
       // Straightest wins, but stay on the same road: a ramp peeling off at a shallow angle is not "ahead".
-      const score = (x) => Math.abs(angleDiff(cur.brg, x.brg)) - (x.way === cur.way ? 10 : 0) + (cur.name && !x.name ? 40 : 0)
+      const score = (x) => Math.abs(angleDiff(cur.brg, x.brg)) - (x.way === cur.way ? 10 : 0) + (cur.name && !x.name ? 40 : 0) + stubPenalty(x)
         - (cur.name && nameKey(x.name) === nameKey(cur.name) ? 10 : 0);
       opts.sort((a, b) => score(a) - score(b));
       if (Math.abs(angleDiff(cur.brg, opts[0].brg)) > 100) break;
@@ -297,7 +327,95 @@ function drive(root, ctx, mode) {
     return pickd;
   }
 
-  const chooseTurn = (side) => crossTurn(g.node, side) || pickTurn(g.node, side) || nearTurn(side);
+  /**
+   * A named road forking off right here at a shallow angle (I-25 splitting into
+   * US-6, a named ramp leaving Kalamath): it's left or right by the side it peels
+   * off from the road straight ahead.
+   */
+  function forkTurn(side) {
+    const n = g.node;
+    const up = segmentsFrom(n, false).filter((x) => Math.abs(angleDiff(g.heading, x.brg)) <= LOOK).sort((a, b) => aheadScore(a) - aheadScore(b))[0];
+    if (!up) return null;
+    const upH = G.headingOut(up.id);
+    let best = null;
+    for (const id of G.out[n]) {
+      const e = G.edges[id];
+      if (id === up.id || e.to === g.prev || !e.name || nameKey(e.name) === nameKey(g.street)) continue;
+      const h = G.headingOut(id);
+      if (Math.abs(angleDiff(g.heading, h)) > 35) continue;
+      let rel = angleDiff(upH, h);
+      if (Math.abs(rel) < 2) rel = angleDiff(up.brg, bearing(G.pt(e.from), G.pt(e.to)));
+      if (Math.abs(rel) < 1 || (side === 'left') !== (rel < 0)) continue;
+      const c = { via: [], edge: id, brg: h, name: shortName(e.name), len: 0, score: Math.abs(rel) };
+      if (!best || c.score < best.score) best = c;
+    }
+    return best;
+  }
+
+  /**
+   * On a freeway, an exit ramp on this side, when no street was found through it:
+   * drive onto the ramp itself, and choose the street at the bottom of the ramp.
+   */
+  function rampTurn(side) {
+    const n = g.node;
+    const arr = G.inc[n].find((e) => G.edges[e].from === g.prev);
+    if (arr === undefined || !/motorway|trunk/.test(G.ways[G.edges[arr].way].cls)) return null;
+    let best = null;
+    for (const id of G.out[n]) {
+      const e = G.edges[id];
+      if (e.name || G.ways[e.way].cls !== 'link') continue;
+      let r = angleDiff(g.heading, bearing(G.pt(e.from), G.pt(e.to)));
+      if (Math.abs(r) < 2) r = angleDiff(g.heading, G.headingOut(id));
+      if (Math.abs(r) < 1 || (side === 'left') !== (r < 0)) continue;
+      const x = exitFor(ctx, n, id);
+      const c = { via: [], edge: id, brg: G.headingOut(id), name: x ? `${exitTab(x)} ramp` : 'Exit ramp', score: Math.abs(r) };
+      if (!best || c.score < best.score) best = c;
+    }
+    return best;
+  }
+
+  /** On a surface street, a freeway on-ramp leaving right here on this side: drive onto it. */
+  function onRampTurn(side) {
+    const n = g.node;
+    const arr = G.inc[n].find((e) => G.edges[e].from === g.prev);
+    if (arr !== undefined && /motorway|trunk|link/.test(G.ways[G.edges[arr].way].cls)) return null;
+    let best = null;
+    for (const id of G.out[n]) {
+      const e = G.edges[id];
+      if (e.name || G.ways[e.way].cls !== 'link' || e.to === g.prev || isSlipLane(id)) continue;
+      // Which freeway does it reach?
+      let fwy = null;
+      const seen = new Set([e.to]);
+      const q = [{ n: e.to, len: e.len }];
+      while (q.length && !fwy) {
+        const cur = q.shift();
+        for (const o of G.out[cur.n]) {
+          const y = G.edges[o];
+          if (y.name && /motorway|trunk/.test(G.ways[y.way].cls)) { fwy = shortName(y.name); break; }
+          if (y.name || seen.has(y.to) || cur.len + y.len > 2500) continue;
+          seen.add(y.to);
+          q.push({ n: y.to, len: cur.len + y.len });
+        }
+      }
+      if (!fwy) continue;
+      let r = angleDiff(g.heading, bearing(G.pt(e.from), G.pt(e.to)));
+      if (Math.abs(r) < 2) r = angleDiff(g.heading, G.headingOut(id));
+      if (Math.abs(r) < 1 || Math.abs(r) > 150 || (side === 'left') !== (r < 0)) continue;
+      const c = { via: [], edge: id, brg: G.headingOut(id), name: `On-ramp to ${fwy}`, score: Math.abs(r) };
+      if (!best || c.score < best.score) best = c;
+    }
+    return best;
+  }
+
+  function chooseTurn(side) {
+    const fork = forkTurn(side);
+    if (fork) return fork;
+    const cross = crossTurn(g.node, side);
+    const ramp = onRampTurn(side);
+    // An on-ramp leaving here wins, unless a real street leaves this same corner on that side.
+    if (ramp && !(cross && !cross.via.length && !cross.slip)) return ramp;
+    return cross || pickTurn(g.node, side) || rampTurn(side) || nearTurn(side);
+  }
 
   /** What each arrow does from here (for button labels). */
   function preview() {
@@ -372,10 +490,12 @@ function drive(root, ctx, mode) {
       const shared = crossAt(from).filter((x) => crossAt(n).includes(x));
       // Keep going through a stop with no cross street at all (a tangle of the
       // street's own pieces), or across the far roadway of a divided cross street.
-      if (crossAt(n).length && (len > 45 || !shared.length)) break;
+      // (A ramp or connector leaving here is a real choice: stop for it.)
+      const onlyOwn = G.out[n].every((e) => G.edges[e].to === last.from || (G.edges[e].name && nameKey(G.edges[e].name) === mine));
+      if (crossAt(n).length ? (len > 45 || !shared.length) : !onlyOwn) break;
       // Tangled intersections jog: allow a wider angle, preferring our own street.
       const nxt = segmentsFrom(n, false).filter((x) => x.to !== last.from && Math.abs(angleDiff(last.brg, x.brg)) <= (nameKey(x.name) === mine ? 70 : LOOK))
-        .sort((a, b) => Math.abs(angleDiff(last.brg, a.brg)) - Math.abs(angleDiff(last.brg, b.brg)) - (nameKey(a.name) === mine ? 10 : 0) + (nameKey(b.name) === mine ? 10 : 0))[0];
+        .sort((a, b) => Math.abs(angleDiff(last.brg, a.brg)) + stubPenalty(a) - Math.abs(angleDiff(last.brg, b.brg)) - stubPenalty(b) - (nameKey(a.name) === mine ? 10 : 0) + (nameKey(b.name) === mine ? 10 : 0))[0];
       if (!nxt) break;
       from = n;
       segs = segs.concat(walkBlock(nxt, false));
@@ -658,7 +778,7 @@ function drive(root, ctx, mode) {
         quiet = true;
         try {
           for (const a of seq) { if (!g.done) acts[a](); }
-          return { node: g.node, street: g.street, pending: !!g.pending, done: g.done, heading: g.heading, moved: g.node !== saved.node || !!g.pending !== !!saved.pending || Math.abs(angleDiff(g.heading, saved.heading)) > 1 };
+          return { node: g.node, street: g.street, pending: !!g.pending, done: g.done, cost: g.cost, heading: g.heading, moved: g.node !== saved.node || !!g.pending !== !!saved.pending || Math.abs(angleDiff(g.heading, saved.heading)) > 1 };
         } finally {
           g = saved;
           quiet = false;
