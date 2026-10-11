@@ -6,7 +6,7 @@
 // ends at a hospital.
 
 import { distance, bearing, angleDiff, toCardinal, CARDINAL_NAMES } from '../lib/geo.js';
-import { shortName, nameKey } from '../lib/names.js';
+import { shortName, nameKey, streetMatches } from '../lib/names.js';
 import { el, pick, onKeys, scoreBar, fmtTime } from '../ui.js';
 import { mapPanel } from '../map.js';
 import { Windshield } from '../windshield.js';
@@ -73,7 +73,9 @@ function drive(root, ctx, mode) {
   ws.el.append(wsPads);
   mapEl.append(mapPads);
   const views = el('div', { class: 'drive-views' }, ws.el, mapBox);
-  root.append(el('h1', { class: 'game-title' }, title), head, stage);
+  // Third view, below the windshield and map: turn-by-turn by street name.
+  const tbt = el('section', { class: 'panel tbt', 'aria-label': 'Turn-by-turn' });
+  root.append(el('h1', { class: 'game-title' }, title), head, stage, tbt);
 
   const toggle = (key, label) => el('label', { class: 'inline' },
     el('input', { type: 'checkbox', checked: prefs[key], onchange: (e) => { prefs[key] = e.target.checked; store.save(`${mode}:prefs`, prefs); render(); } }),
@@ -553,6 +555,7 @@ function drive(root, ctx, mode) {
     const t = chooseTurn(side);
     if (!t) return flash(`No street to the ${side} here.`);
     g.lastMove = 'forward';
+    g.turnDist = g.dist;
     if (t.slip) {
       // Back up to where the slip lane peels off, then take it.
       const sl = t.slip;
@@ -606,7 +609,7 @@ function drive(root, ctx, mode) {
         if (!best) continue;
         g = { node: s, start: s, target, heading: st.facing, street: st.street, startStreet: st.street, station: st, to: a, best, startFacing: st.facing };
       }
-      Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, moves: 0, done: false, t0: performance.now(), msg: '', lastMove: 'forward' });
+      Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, turnDist: 0, moves: 0, done: false, t0: performance.now(), msg: '', lastMove: 'forward' });
       ws.reset({ node: g.node, heading: g.heading, street: g.street, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
       seen = { trail: 1, heading: g.heading, pending: null };
       render();
@@ -647,6 +650,136 @@ function drive(root, ctx, mode) {
     seen = { trail: g.trail.length, heading: g.heading, pending: g.pending };
   }
 
+  /** Button text for a turn option: the street, or the exit number and street on a freeway. */
+  function turnLabel(o) {
+    const x = o.via?.length ? exitFor(ctx, o.hop ? o.hop.to : g.node, o.via[0]) : null;
+    if (x) return `${exitTab(x)} · ${o.name} ${dirWord(o.brg)}`;
+    if (nameKey(o.name) === nameKey(g.street)) {
+      // Out of the bay onto the station's own street: say which way.
+      if (g.node === g.start && !g.moves) return `${o.name} ${dirWord(o.brg)}`;
+      return `U-turn (${o.name})`;
+    }
+    return o.name;
+  }
+  const isUturn = (o) => nameKey(o.name) === nameKey(g.street) && !(g.node === g.start && !g.moves);
+
+  // ---- Turn-by-turn ---------------------------------------------------------
+  // The intersections ahead on the road you're on: drive forward quietly, note
+  // each stop and the turns it offers, then put everything back.
+  let ahead = null; // { key, list }
+  function lookAhead() {
+    const key = `${g.node}|${g.moves}|${!!g.pending}|${Math.round(g.heading)}`;
+    if (ahead?.key === key) return ahead.list;
+    const saved = { ...g, trail: g.trail.slice() };
+    const list = [];
+    const opt = (side) => { const o = chooseTurn(side); return o && !isUturn(o) ? { label: turnLabel(o), name: o.name } : null; };
+    // Where you are now (in the bay, or stopped at a corner).
+    if (!g.pending) {
+      const left = opt('left');
+      const right = opt('right');
+      if (left || right) list.push({ steps: 0, here: true, dist: g.dist - g.turnDist, street: g.street, cross: [], left, right });
+    }
+    quiet = true;
+    try {
+      for (let k = 1; k <= 30 && !g.done; k++) {
+        const before = g.node;
+        const wasPending = !!g.pending;
+        forward();
+        const dist = g.dist - saved.turnDist;
+        if (g.done) { list.push({ steps: k, dist, arrive: true }); break; }
+        if (g.node === before && !wasPending) break;
+        const left = opt('left');
+        const right = opt('right');
+        const cross = streetsAt(g.node).filter((n) => nameKey(n) !== nameKey(g.street));
+        if (left || right) list.push({ steps: k, dist, street: g.street, cross, left, right });
+        if (dist > 8000) break;
+      }
+    } finally {
+      g = saved;
+      quiet = false;
+    }
+    ahead = { key, list };
+    return list;
+  }
+
+  /** Drive to the k-th stop ahead in one move, then turn (side) or just stop there. */
+  function driveAhead(entry, side) {
+    if (g.done) return;
+    quiet = true;
+    for (let k = 0; k < entry.steps && !g.done; k++) forward();
+    quiet = false;
+    if (g.done) return arrive();
+    if (side) turn(side); else render();
+  }
+
+  let tbtKey = '';
+  function renderTurnByTurn() {
+    tbt.hidden = g.done;
+    if (g.done) { tbtKey = ''; return; }
+    const list = lookAhead();
+    if (ahead.key === tbtKey) return;
+    tbtKey = ahead.key;
+    const mi = (m) => `${(m / 1609.344).toFixed(2)} mi`;
+    const names = (a) => (a.arrive ? '🏁 Destination' : [...new Set([a.left?.label, a.right?.label, ...a.cross].filter(Boolean))].join(' / '));
+    const sel = el('select', { class: 'tbt-select', 'aria-label': 'Upcoming intersections' },
+      el('option', { value: '' }, list.length ? 'Pick an intersection' : 'No intersections ahead on this road'),
+      list.map((a, i) => el('option', { value: String(i) }, `${a.here ? 'Here' : mi(a.dist)} · ${names(a)}`)));
+    const dl = el('datalist', { id: 'tbt-streets' },
+      [...new Set(list.flatMap((a) => [a.left?.name, a.right?.name, ...(a.cross || [])]).filter(Boolean))].map((n) => el('option', { value: n })));
+    const input = el('input', { class: 'tbt-input', type: 'text', list: 'tbt-streets', placeholder: 'Type the next street, e.g. W 92nd Ave', autocomplete: 'off', 'aria-label': 'Next street' });
+    const note = el('small', { class: 'muted tbt-note' });
+    const bLeft = el('button', { type: 'button', class: 'btn' });
+    const bRight = el('button', { type: 'button', class: 'btn' });
+    const bGo = el('button', { type: 'button', class: 'btn' });
+    let cur = null; // the chosen intersection
+    const matches = (o, typed) => o && (!typed || streetMatches(typed, o.name) || streetMatches(typed, o.label));
+    function update() {
+      const typed = input.value.trim();
+      const okL = cur && matches(cur.left, typed);
+      const okR = cur && matches(cur.right, typed);
+      bLeft.disabled = !okL;
+      bRight.disabled = !okR;
+      bGo.disabled = !cur || cur.here;
+      bLeft.textContent = okL ? `◀ Left onto ${cur.left.label}` : '◀ Turn left';
+      bRight.textContent = okR ? `Right onto ${cur.right.label} ▶` : 'Turn right ▶';
+      bGo.textContent = cur?.arrive ? 'Drive to the destination' : 'Drive to it';
+      note.textContent = !cur
+        ? (typed ? `${typed} isn't one of the intersections ahead on ${g.street || 'this road'}.` : `Distances count from your last turn. You're ${mi(g.dist - g.turnDist)} along ${g.street || 'this road'}.`)
+        : cur.arrive ? `The destination is ${mi(cur.dist)} ahead.` : cur.here ? 'You\'re at this corner now: turn here.' : `${mi(cur.dist)} from your last turn${cur.cross.length ? `, at ${cur.cross.slice(0, 2).join(' & ')}` : ''}.`;
+    }
+    sel.onchange = () => {
+      cur = sel.value === '' ? null : list[+sel.value];
+      input.value = cur && !cur.arrive ? (cur.left && cur.right && cur.left.name !== cur.right.name ? '' : (cur.left || cur.right)?.name || cur.cross[0] || '') : '';
+      update();
+    };
+    input.oninput = () => {
+      const typed = input.value.trim();
+      const i = typed ? list.findIndex((a) => matches(a.left, typed) && a.left || matches(a.right, typed) && a.right || (a.cross || []).some((c) => streetMatches(typed, c))) : -1;
+      cur = i >= 0 ? list[i] : null;
+      sel.value = i >= 0 ? String(i) : '';
+      update();
+    };
+    input.onkeydown = (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (!bLeft.disabled && bRight.disabled) bLeft.click();
+      else if (!bRight.disabled && bLeft.disabled) bRight.click();
+      else if (cur) note.textContent = 'Both ways are open here: pick Left or Right.';
+    };
+    bLeft.onclick = () => cur && driveAhead(cur, 'left');
+    bRight.onclick = () => cur && driveAhead(cur, 'right');
+    bGo.onclick = () => cur && driveAhead(cur, null);
+    tbt.replaceChildren(
+      el('h3', {}, 'Turn-by-turn'),
+      el('p', { class: 'muted small' }, `On ${g.pending ? `your turn onto ${g.pending.name}` : g.street || 'an unnamed road'}, heading ${CARDINAL_NAMES[toCardinal(g.heading)]}. Pick an intersection ahead, or type the street you'll turn onto.`),
+      el('div', { class: 'tbt-grid' },
+        el('label', {}, el('span', { class: 'deck-label' }, 'Upcoming intersections'), sel),
+        el('label', {}, el('span', { class: 'deck-label' }, 'Next street'), input, dl)),
+      el('div', { class: 'row tbt-actions' }, bLeft, bGo, bRight),
+      note);
+    update();
+  }
+
   function render() {
     if (!g || quiet) return;
     syncView();
@@ -655,10 +788,6 @@ function drive(root, ctx, mode) {
     const cross = streetsAt(g.node).filter((n) => nameKey(n) !== nameKey(g.street));
     // Freeway exits: name them by number and street, on the buttons and the trip line.
     const exitHere = (freewayExits(ctx).get(g.node) || []).filter((x) => Math.abs(angleDiff(g.heading, x.along)) <= 40);
-    const turnLabel = (o) => {
-      const x = o.via?.length ? exitFor(ctx, o.hop ? o.hop.to : g.node, o.via[0]) : null;
-      return x ? `${exitTab(x)} · ${o.name} ${dirWord(o.brg)}` : o.name;
-    };
     const at = exitHere.length
       ? ` · At ${exitHere.map((x) => `${exitTab(x)} (${x.names.join(', ') || x.dest})`).join(' & ')}`
       : cross.length ? ` · At ${cross.slice(0, 2).join(' & ')}` : '';
@@ -695,6 +824,7 @@ function drive(root, ctx, mode) {
     // Call over (arrived or "Show me the route"): drop the windshield, enlarge the map.
     views.classList.toggle('done', g.done);
     drawMap();
+    renderTurnByTurn();
   }
 
   // Where the truck is drawn on the map: follows the windshield animation.
@@ -773,6 +903,7 @@ function drive(root, ctx, mode) {
     window.WFD_DEBUG.drive = {
       state: () => g,
       graph: G,
+      ahead: () => lookAhead(),
       peek(seq) {
         const saved = { ...g, trail: g.trail.slice() };
         quiet = true;
