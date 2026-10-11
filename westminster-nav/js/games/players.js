@@ -10,6 +10,8 @@ const GAME_TABS = [
   { id: 'all', label: 'Overall' },
   { id: 'flashcards', label: 'Rotations' },
   { id: 'side', label: 'Street Side' },
+  { id: 'cross', label: 'Cross Streets' },
+  { id: 'westeast', label: 'West or East' },
   { id: 'turn', label: 'Turn Signal' },
   { id: 'cardinal', label: 'Cardinal' },
   { id: 'responder', label: 'Responder' },

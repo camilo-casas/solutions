@@ -8,6 +8,8 @@ import { flashcards } from './games/flashcards.js';
 import { turnSignal } from './games/turnSignal.js';
 import { cardinal } from './games/cardinal.js';
 import { streetSide } from './games/streetSide.js';
+import { crossStreets } from './games/crossStreets.js';
+import { westEast } from './games/westEast.js';
 import { responder, transporter } from './games/drive.js';
 import { setup } from './games/setup.js';
 import { splash, scores } from './games/players.js';
@@ -16,6 +18,8 @@ import * as board from './scoreboard.js';
 const GAMES = [
   { id: 'flashcards', name: 'Rotations', icon: '🗂️', blurb: 'Learn the 18 major streets, then all 132, with a memory hook for every street and number.', view: flashcards },
   { id: 'side', name: 'Street Side', icon: '🏠', blurb: 'A real Westminster address: is it on the north, south, east or west side of the street? NOW / SEE.', view: streetSide },
+  { id: 'cross', name: 'Cross Streets', icon: '➕', blurb: 'A real address on a numbered avenue: which two rotation streets is it between?', view: crossStreets },
+  { id: 'westeast', name: 'West or East', icon: '⇆', blurb: 'Starting on one street, is the other west or east of it? Bigger numbers are further west.', view: westEast },
   { id: 'turn', name: 'Turn Signal', icon: '↔️', blurb: 'Station plus an address: do you turn left or right out of the bay?', view: turnSignal },
   { id: 'cardinal', name: 'Cardinal', icon: '🧭', blurb: 'From an address, which way is the hospital, station or landmark?', view: cardinal },
   { id: 'responder', name: 'Responder', icon: '🚒', blurb: 'Drive from the station to the address block by block with the arrow keys. Scored against the fastest route.', view: responder },
