@@ -28,8 +28,10 @@ const TOWERS = [
   [0.36, 0.09, 0.82], [0.5, 0.06, 0.6], [0.62, 0.08, 0.48], [0.76, 0.07, 0.4], [0.9, 0.06, 0.3],
 ];
 // Reference landmarks (Bell Tower, Castle): true size within MARK_GROW meters,
-// then scaled up with distance so they keep a readable size out to MARK_RANGE.
+// then enlarged by (dist / MARK_GROW) ** MARK_EXAG so they still shrink with
+// distance, just slower than real life, and stay findable out to MARK_RANGE.
 const MARK_GROW = 320;
+const MARK_EXAG = 0.55;
 const MARK_RANGE = 14000;
 const SUN = [-0.45, -0.55, 0.7]; // toward the sun: southwest, fairly high
 
@@ -433,7 +435,7 @@ export class Windshield {
       .sort((a, b) => b.dist - a.dist);
     const tags = [];
     for (const { m, dist } of shown) {
-      const k = Math.max(1, dist / MARK_GROW);
+      const k = Math.max(1, (dist / MARK_GROW) ** MARK_EXAG);
       const haze = Math.min(0.55, dist / 16000);
       const at = ([e, n, u]) => cam(m.x + k * e, m.y + k * n, k * u);
       const faces = [];
