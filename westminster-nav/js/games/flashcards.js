@@ -2,7 +2,6 @@
 // retrieval quiz), then free practice with Leitner-box spaced repetition.
 
 import { ROTATIONS, STREETS, conflicts } from '../lib/rotations.js';
-import { ordinal } from '../lib/names.js';
 import { rule, mnemonic, alsoNote, MAJOR_TIP, PEGS, PEG_ART } from '../lib/mnemonics.js';
 import { openPoster, artURI } from '../mnemonicArt.js';
 import { crosstown, SHEET_WIDTH } from '../lib/crosstown.js';
@@ -14,7 +13,6 @@ const MODES = [
   { id: 'study', label: 'Study', hint: 'Flip the card, then grade yourself.' },
   { id: 'name2block', label: 'Name → Block', hint: 'What hundred block is this street?' },
   { id: 'block2name', label: 'Block → Name', hint: 'Which street sits on this block?' },
-  { id: 'side', label: 'Street side', hint: 'Which side of the street is it on? Even = south or east, odd = north or west.' },
 ];
 // The cross-town avenues deck has its own two modes.
 const EW_MODES = [
@@ -329,68 +327,6 @@ export function flashcards(root, ctx) {
       );
       return;
     }
-
-    if (prefs.mode === 'side') { streetSide(s); return; }
-  }
-
-  // Street side: South and East sides are even, North and West sides are odd.
-  function streetSide(s) {
-    const BLVD = new Set(['Federal', 'Lowell', 'Sheridan', 'Wadsworth']);
-    const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-    const ave = rnd(70, 149);
-    const nsStreet = Math.random() < 0.5;
-    let num;
-    let label;
-    if (nsStreet) {
-      num = ave * 100 + rnd(1, 98);
-      label = `${num} ${s.name} ${BLVD.has(s.name) ? 'Blvd' : 'St'}`;
-    } else {
-      const nextS = STREETS[STREETS.indexOf(s) + 1];
-      num = s.block + rnd(1, Math.max(2, (nextS ? nextS.block - s.block : 100) - 2));
-      label = `${num} W ${ordinal(ave)} Ave`;
-    }
-    const even = num % 2 === 0;
-    const truth = nsStreet ? (even ? 'E' : 'W') : (even ? 'S' : 'N');
-    const NAMES = { N: 'North', E: 'East', S: 'South', W: 'West' };
-    const t0 = performance.now();
-    let done = false;
-    const btns = {};
-    const answer = (c) => {
-      if (done) return;
-      done = true;
-      const ok = c === truth;
-      Object.entries(btns).forEach(([k, b]) => {
-        b.disabled = true;
-        if (k === truth) b.classList.add('right');
-        else if (k === c) b.classList.add('wrong');
-      });
-      const ms = performance.now() - t0;
-      const points = ok ? 10 + Math.max(0, Math.round(5 - ms / 1000)) : 0;
-      store.record('flashcards', ok ? 1 : 0, points, ms);
-      renderHead();
-      const where = nsStreet
-        ? `${s.name} runs north–south, so its sides are east and west. It's between ${ordinal(ave)} and ${ordinal(ave + 1)} Ave.`
-        : `W ${ordinal(ave)} Ave runs east–west, so its sides are north and south. It's on the ${s.name} block (${s.block}).`;
-      stage.append(el('div', { class: `verdict ${ok ? 'good' : 'bad'}` },
-        el('b', {}, ok ? `Correct: ${NAMES[truth]} side (+${points})` : `It's the ${NAMES[truth]} side`),
-        el('p', {}, `${num} is ${even ? 'even' : 'odd'}, and ${even ? 'even numbers are on the south and east sides' : 'odd numbers are on the north and west sides'}. ${where}`),
-        el('div', { class: 'memory' }, el('div', { class: 'hook' }, el('span', { class: 'mem-label' }, 'Remember'),
-          'NOW: North, Odd, West. SEE: South, Even, East.')),
-        el('button', { class: 'btn primary', onclick: ask }, 'Next ↵')));
-    };
-    for (const c of ['N', 'E', 'S', 'W']) btns[c] = el('button', { class: 'rose-btn', onclick: () => answer(c) }, NAMES[c]);
-    stage.append(
-      el('div', { class: 'prompt' },
-        el('div', { class: 'face-big addr' }, label),
-        el('div', { class: 'face-sub' }, 'Which side of the street is it on?')),
-      el('div', { class: 'rose side-rose' },
-        el('div'), btns.N, el('div'),
-        btns.W, el('div', { class: 'rose-center', 'aria-hidden': 'true' }, '±'), btns.E,
-        el('div'), btns.S, el('div')));
-    onKeys((e) => {
-      const map = { ArrowUp: 'N', ArrowRight: 'E', ArrowDown: 'S', ArrowLeft: 'W' };
-      if (!done && map[e.key]) { e.preventDefault(); answer(map[e.key]); } else if ((e.key === 'Enter' || e.key === ' ') && done) { e.preventDefault(); ask(); }
-    });
   }
 
   // ---- Cross-town avenues -------------------------------------------------
