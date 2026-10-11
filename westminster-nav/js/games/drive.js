@@ -27,6 +27,7 @@ function drive(root, ctx, mode) {
   const isT = mode === 'transporter';
   const title = isT ? 'Transporter' : 'Responder';
   const prefs = { hints: false, off: [], ...store.load(`${mode}:prefs`, {}) };
+  prefs.views = { ws: true, map: true, tbt: true, ...prefs.views };
 
   // Hospitals the street data reaches (others are outside the downloaded map).
   // A hospital counts only if its street connects to Westminster's road network.
@@ -79,6 +80,10 @@ function drive(root, ctx, mode) {
     ` ${label}`);
   const renderHead = () => head.replaceChildren(...[
     el('div', { class: 'row' }, isT ? null : picker.el, toggle('hints', 'Hints')),
+    el('div', { class: 'row view-toggles' }, el('span', { class: 'deck-label' }, 'Show'),
+      [['ws', 'Windshield'], ['map', 'Map'], ['tbt', 'Turn-by-turn']].map(([k, label]) => el('label', { class: 'inline' },
+        el('input', { type: 'checkbox', checked: prefs.views[k], onchange: (e) => { prefs.views[k] = e.target.checked; store.save(`${mode}:prefs`, prefs); applyViews(); render(); } }),
+        ` ${label}`))),
     isT ? null : el('small', { class: 'muted' }, FIRST_DUE_NOTE),
     isT ? hospToggles() : null,
     isT && hospitals.length > reachable.length
@@ -655,6 +660,45 @@ function drive(root, ctx, mode) {
     stage.append(el('div', { class: 'panel error' }, 'Could not build a call. Try again or check Station setup.'));
   }
 
+  // ---- Undo -----------------------------------------------------------------
+  // Each move the player makes saves the state before it; Undo puts it back.
+  let history = [];
+  const snapshot = () => ({ ...g, trail: g.trail.slice() });
+  function act(fn) {
+    if (!g || g.done) return;
+    const before = snapshot();
+    history.push(before);
+    fn();
+    const moved = g.node !== before.node || g.pending !== before.pending || g.trail.length !== before.trail.length || Math.abs(angleDiff(g.heading, before.heading)) > 0.5;
+    if (!moved && history[history.length - 1] === before) { history.pop(); render(); }
+    if (history.length > 200) history.shift();
+  }
+  function undo() {
+    if (!g || g.done || !history.length) return;
+    const prevState = history.pop();
+    const t0 = g.t0;
+    g = { ...prevState, trail: prevState.trail.slice(), t0, msg: '' };
+    anim = null;
+    ahead = null;
+    tbtKey = '';
+    ws.reset({ node: g.node, heading: g.heading, street: g.pending ? g.pending.name : g.street, dist: g.dist, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
+    seen = { trail: g.trail.length, heading: g.heading, pending: g.pending };
+    render();
+  }
+  const doForward = () => act(forward);
+  const doBack = () => act(backward);
+  const doTurn = (side) => act(() => turn(side));
+
+  /** Show or hide the three views (windshield, map, turn-by-turn). The answer screen always shows the map. */
+  function applyViews() {
+    const v = prefs.views;
+    const done = !!g?.done;
+    ws.el.hidden = !v.ws;
+    mapBox.hidden = !v.map && !done;
+    views.hidden = !v.ws && !v.map && !done;
+    views.classList.toggle('one', !(v.ws && v.map));
+  }
+
   // The call as it was dispatched, so "Retry" can run it again from the start.
   let lastCall = null;
   const retry = () => { if (lastCall) begin(lastCall); };
@@ -666,6 +710,7 @@ function drive(root, ctx, mode) {
     ahead = null;
     anim = null;
     tbtKey = '';
+    history = [];
     clearTimeout(msgTimer);
     ws.reset({ node: g.node, heading: g.heading, street: g.street, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
     seen = { trail: 1, heading: g.heading, pending: null };
@@ -677,10 +722,11 @@ function drive(root, ctx, mode) {
         else if (k === 'r' || k === 'R') retry();
         return;
       }
-      if (k === 'ArrowUp' || k === 'w') { e.preventDefault(); forward(); }
-      else if (k === 'ArrowDown' || k === 's') { e.preventDefault(); backward(); }
-      else if (k === 'ArrowLeft' || k === 'a') { e.preventDefault(); turn('left'); }
-      else if (k === 'ArrowRight' || k === 'd') { e.preventDefault(); turn('right'); }
+      if (k === 'ArrowUp' || k === 'w') { e.preventDefault(); doForward(); }
+      else if (k === 'ArrowDown' || k === 's') { e.preventDefault(); doBack(); }
+      else if (k === 'ArrowLeft' || k === 'a') { e.preventDefault(); doTurn('left'); }
+      else if (k === 'ArrowRight' || k === 'd') { e.preventDefault(); doTurn('right'); }
+      else if (k === 'u' || k === 'U' || ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'Z'))) { e.preventDefault(); undo(); }
     });
   }
 
@@ -799,7 +845,7 @@ function drive(root, ctx, mode) {
   let tbtKey = '';
   let tbtArrived = false; // just used "Drive to it": keep that corner selected
   function renderTurnByTurn() {
-    tbt.hidden = g.done;
+    tbt.hidden = g.done || !prefs.views.tbt;
     if (g.done) { tbtKey = ''; return; }
     const list = lookAhead();
     if (ahead.key === tbtKey) return;
@@ -851,9 +897,9 @@ function drive(root, ctx, mode) {
       else if (!bRight.disabled && bLeft.disabled) bRight.click();
       else if (cur) note.textContent = 'Both ways are open here: pick Left or Right.';
     };
-    bLeft.onclick = () => cur && driveAhead(cur, 'left');
-    bRight.onclick = () => cur && driveAhead(cur, 'right');
-    bGo.onclick = () => { if (!cur) return; tbtArrived = true; driveAhead(cur, null); };
+    bLeft.onclick = () => cur && act(() => driveAhead(cur, 'left'));
+    bRight.onclick = () => cur && act(() => driveAhead(cur, 'right'));
+    bGo.onclick = () => { if (!cur) return; tbtArrived = true; act(() => driveAhead(cur, null)); };
     tbt.replaceChildren(
       el('h3', {}, 'Turn-by-turn'),
       el('div', { class: 'map-dest tbt-dest' },
@@ -895,10 +941,10 @@ function drive(root, ctx, mode) {
       type: 'button', class: `edge-pad edge-${dir}`, disabled: !enabled, onclick: fn, title: `${label}: ${sub}`, 'aria-label': `${label}: ${sub}`,
     }, el('span', { class: 'pad-arrow', 'aria-hidden': 'true' }, arrow), enabled ? el('span', { class: 'pad-sub' }, sub) : null);
     const pads = () => (g.done ? [] : [
-      pad('up', '▲', 'Forward', p.ahead ? p.ahead.name : 'no road', !!p.ahead, forward),
-      pad('left', '◀', 'Left', p.left ? turnLabel(p.left) : '—', !!p.left, () => turn('left')),
-      pad('right', '▶', 'Right', p.right ? turnLabel(p.right) : '—', !!p.right, () => turn('right')),
-      pad('down', '▼', 'Back up', p.back ? 'Back up' : '—', p.back, backward),
+      pad('up', '▲', 'Forward', p.ahead ? p.ahead.name : 'no road', !!p.ahead, doForward),
+      pad('left', '◀', 'Left', p.left ? turnLabel(p.left) : '—', !!p.left, () => doTurn('left')),
+      pad('right', '▶', 'Right', p.right ? turnLabel(p.right) : '—', !!p.right, () => doTurn('right')),
+      pad('down', '▼', 'Back up', p.back ? 'Back up' : '—', p.back, doBack),
     ]);
     wsPads.replaceChildren(...pads());
     mapPads.replaceChildren(...pads());
@@ -917,12 +963,14 @@ function drive(root, ctx, mode) {
       el('div', { class: 'trip-line' }, `${g.moves} moves · ${fmtTime(elapsed)}`, at),
       g.msg ? el('div', { class: 'drive-msg', role: 'status' }, g.msg) : null,
       g.done ? null : el('div', { class: 'row end' },
-        el('small', { class: 'muted' }, 'Keys: ↑ forward · ↓ back · ← → turn'),
+        el('small', { class: 'muted' }, 'Keys: ↑ forward · ↓ back · ← → turn · U undo'),
+        el('button', { class: 'btn', onclick: undo, disabled: !history.length, title: 'Undo your last move (U)' }, '↶ Undo'),
         el('button', { class: 'btn', onclick: giveUp }, 'Show me the route')),
       g.result || null,
     ].filter(Boolean));
     // Call over (arrived or "Show me the route"): drop the windshield, enlarge the map.
     views.classList.toggle('done', g.done);
+    applyViews();
     drawMap();
     renderTurnByTurn();
   }

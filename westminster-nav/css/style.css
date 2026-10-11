@@ -517,3 +517,7 @@ nav a.active { color: var(--gold); background: rgba(242, 183, 5, 0.12); }
 .patient-need { margin-top: 4px; font-size: 14px; color: var(--muted); }
 .patient-need b { color: var(--accent); }
 .why-hospital { margin: 0; font-size: 14px; }
+/* Responder/Transporter view toggles. */
+.view-toggles { gap: 14px; align-items: center; }
+.drive-views[hidden], .drive-map[hidden], .windshield[hidden], .tbt[hidden] { display: none !important; }
+@media (min-width: 760px) { .drive-views.one { grid-template-columns: 1fr; } }
