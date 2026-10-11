@@ -1,4 +1,5 @@
 import { RoadGraph } from './lib/graph.js';
+import { applyOverrides } from './lib/overrides.js';
 import { makeGrid } from './lib/grid.js';
 import { shortName } from './lib/names.js';
 import { CARDINAL_DEG } from './lib/geo.js';
@@ -37,6 +38,7 @@ async function loadContext() {
   const city = embedded?.city || await get('data/city.json');
   const fileStations = embedded?.stations || await get('data/stations.json');
   const landmarks = embedded?.landmarks || await get('data/landmarks.json').catch(() => []);
+  applyOverrides(city); // e.g. apparatus may run both ways on 72nd Way at Station 1
   const graph = new RoadGraph(city);
   const grid = makeGrid(city.meta.grid);
   const addresses = city.addresses.map(([num, ni, lat, lon, src]) => ({

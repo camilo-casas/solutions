@@ -70,6 +70,7 @@ js/map.js             canvas map (no tiles, so street names stay hidden until yo
 js/windshield.js      driver's-eye 3D view for Responder and Transporter (plain canvas, no library)
 js/lib/exits.js       freeway exits: where each ramp leads, for the exit signs
 js/lib/streetBlock.js the grid number printed on each street blade
+js/lib/overrides.js   local exceptions to the map data (one-way streets apparatus may run both ways)
 js/lib/crosstown.js   cross-town avenues: each one's unbroken run, ends and breaks, from the map data
 js/games/*.js         the games, start screen, scoreboard and station setup
 js/scoreboard.js      shared scoreboard (artifact database or Firestore), else per-device
@@ -106,6 +107,8 @@ Map data © OpenStreetMap contributors, ODbL.
 | 4 | 4580 W 112th Ave | North | W 112th Ave |
 | 5 | 10100 Garland St | West | Garland St |
 | 6 | 999 W 124th Ave | South | W 124th Ave |
+
+Some one-way streets can be driven both ways by apparatus: these exceptions live in `APPARATUS_TWO_WAY` in `js/lib/overrides.js` and are applied when the map loads, so they survive map-data rebuilds. Today: 72nd Way (W 72nd Pl) between Osceola and 72nd Ave at Station 1, which apparatus may run east on to reach 72nd Ave.
 
 To adjust one, open **Station setup** (link at the bottom of the home page), tap the map, pick the street and facing, then **Export stations.json** and commit it.
 
