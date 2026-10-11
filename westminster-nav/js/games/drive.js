@@ -5,6 +5,7 @@
 // Responder starts in a station bay; Transporter starts at a scene address and
 // ends at a hospital.
 
+import { MinHeap } from '../lib/graph.js';
 import { distance, bearing, angleDiff, toCardinal, CARDINAL_NAMES } from '../lib/geo.js';
 import { shortName, nameKey, streetMatches } from '../lib/names.js';
 import { el, pick, onKeys, scoreBar, fmtTime } from '../ui.js';
@@ -13,7 +14,7 @@ import { Windshield } from '../windshield.js';
 import { freewayExits, exitFor, exitTab, dirWord } from '../lib/exits.js';
 import * as store from '../store.js';
 import { COLORS, stationPicker, stationCard, gridNote, directionsList, driveTime, firstDueCall, FIRST_DUE_NOTE } from './common.js';
-import { NEEDS, pickNeed, capabilityOf } from '../lib/hospitals.js';
+import { pickNeed, capabilityOf, capabilityText } from '../lib/hospitals.js';
 
 const LOOK = 40; // degrees counted as "straight ahead"
 const SPEED = 13; // m/s, for backing-up cost
@@ -48,7 +49,7 @@ function drive(root, ctx, mode) {
     el('div', { class: 'chips' }, reachable.map((h) => {
       const on = !prefs.off.includes(h.name);
       return el('button', {
-        type: 'button', class: on ? 'chip on' : 'chip', 'aria-pressed': String(on), title: h.city,
+        type: 'button', class: on ? 'chip on' : 'chip', 'aria-pressed': String(on), title: `${h.city}: ${capabilityText(h.name)}`,
         onclick: () => {
           if (on && enabledHospitals().length === 1) return; // keep at least one
           prefs.off = on ? [...prefs.off, h.name] : prefs.off.filter((n) => n !== h.name);
@@ -57,7 +58,7 @@ function drive(root, ctx, mode) {
         },
       }, `${on ? '✓ ' : ''}${h.name}`);
     })),
-    el('small', { class: 'muted' }, 'Tap a hospital to switch it on or off. Each call goes to one of the closest hospitals that\'s on and can take the patient: freestanding ERs and smaller hospitals for minor complaints, full-service hospitals for serious medical calls, a Level I trauma center for major trauma, Children\'s for kids.'));
+    el('small', { class: 'muted' }, 'Tap a hospital to switch it on or off (hover for its capabilities). Each call goes to one of the closest hospitals that\'s on and can take the patient: any ER for minor complaints, a full-service hospital for serious medical calls, a cath lab for STEMI, a stroke center for strokes (comprehensive for large-vessel strokes), a Level I or II trauma center for major trauma, the burn center for major burns, and Children\'s for kids.'));
   const ws = new Windshield(ctx, { vehicle: isT ? 'ambulance' : 'engine' });
   let seen = null; // what the windshield last showed: { trail, heading, pending }
   const head = el('div', { class: 'game-head' });
@@ -605,12 +606,37 @@ function drive(root, ctx, mode) {
   // The patient's need decides which hospitals fit; the call goes to the
   // closest of those that are switched on (now and then the next closest,
   // when it's nearly as close).
+  // A cached tree goes stale once a new address splits a road (the new node
+  // isn't in it), so it's rebuilt then.
   const trees = new Map();
-  const treeFor = (h) => { if (!trees.has(h.name)) trees.set(h.name, G.costsTo(h.node)); return trees.get(h.name); };
+  const treeFor = (h) => {
+    if (!trees.has(h.name) || trees.get(h.name).dist.length < G.n) trees.set(h.name, G.costsTo(h.node));
+    return trees.get(h.name);
+  };
+  // Drive time from the scene to each hospital: one search outward from the scene.
+  function timesFrom(s, hs) {
+    const left = new Set(hs.map((h) => h.node));
+    const dist = new Map([[s, 0]]);
+    const done = new Set();
+    const heap = new MinHeap();
+    heap.push(0, s);
+    while (heap.size && left.size) {
+      const u = heap.pop();
+      if (done.has(u)) continue;
+      done.add(u);
+      left.delete(u);
+      for (const eid of G.out[u]) {
+        const e = G.edges[eid];
+        const nd = dist.get(u) + e.cost;
+        if (nd < (dist.get(e.to) ?? Infinity)) { dist.set(e.to, nd); heap.push(nd, e.to); }
+      }
+    }
+    return hs.map((h) => ({ h, t: done.has(h.node) ? dist.get(h.node) : Infinity }));
+  }
   function chooseHospital(s) {
     const pool = enabledHospitals().length ? enabledHospitals() : reachable;
     const need = pickNeed();
-    const timed = pool.map((h) => ({ h, t: treeFor(h).dist[s] })).filter((x) => isFinite(x.t)).sort((a, b) => a.t - b.t);
+    const timed = timesFrom(s, pool).filter((x) => isFinite(x.t)).sort((a, b) => a.t - b.t);
     const fit = timed.filter((x) => capabilityOf(x.h.name).some((c) => need.accepts.includes(c)));
     const list = fit.length ? fit : timed;
     if (!list.length) return null;
@@ -1034,7 +1060,8 @@ function drive(root, ctx, mode) {
         : 'Here\'s the fastest route'),
       isT ? el('p', { class: 'why-hospital' },
         `${g.call.complaint}: ${g.call.fallback ? 'no hospital that fits was switched on, so the closest one' : g.call.need.rule}. `,
-        `Closest from the scene: ${g.call.options.map((o) => `${o.h.name} ${driveTime(o.t)}`).join(', ')}.`) : null,
+        `${g.call.chosen.h.name}: ${capabilityText(g.call.chosen.h.name)}. `,
+        `${g.call.fallback ? "Closest" : "Closest that fit"}, from the scene: ${g.call.options.map((o) => `${o.h.name} ${driveTime(o.t)}`).join(', ')}.`) : null,
       el('details', { open: !arrived || credit < 1 }, el('summary', {}, 'Suggested route'),
         isT ? el('ol', { class: 'directions' }, steps.map((st, i) => el('li', {},
           el('span', { class: `turn ${st.turn || ''}` }, i === 0 ? 'Head out' : st.turn === 'left' ? 'Turn left' : st.turn === 'right' ? 'Turn right' : st.turn === 'u-turn' ? 'Make a U-turn' : 'Continue'),

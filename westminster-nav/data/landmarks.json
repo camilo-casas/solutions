@@ -9,5 +9,10 @@
   {"name": "St. Anthony Hospital (West)", "city": "Lakewood", "type": "hospital", "lat": 39.71446, "lon": -105.12921, "source": "osm"},
   {"name": "Denver Health Medical Center", "city": "Denver", "type": "hospital", "lat": 39.72762, "lon": -104.99087, "source": "osm"},
   {"name": "UCHealth University of Colorado Hospital", "city": "Aurora", "type": "hospital", "lat": 39.74254, "lon": -104.84166, "source": "osm"},
-  {"name": "Children's Hospital Colorado", "city": "Aurora", "type": "hospital", "lat": 39.74234, "lon": -104.83615, "source": "osm"}
+  {"name": "Children's Hospital Colorado", "city": "Aurora", "type": "hospital", "lat": 39.74234, "lon": -104.83615, "source": "osm"},
+  {"name": "Northwest ER (HCA HealthONE)", "city": "Westminster", "type": "hospital", "lat": 39.90035, "lon": -105.0552, "source": "address 11230 Benton St"},
+  {"name": "Saint Joseph ER Northglenn", "city": "Northglenn", "type": "hospital", "lat": 39.91244, "lon": -104.98415, "source": "osm"},
+  {"name": "Northeast ER (HCA HealthONE)", "city": "Thornton", "type": "hospital", "lat": 39.92761, "lon": -104.92323, "source": "osm"},
+  {"name": "UCHealth ER Thornton", "city": "Thornton", "type": "hospital", "lat": 39.9152, "lon": -104.9398, "source": "address 12020 Colorado Blvd"},
+  {"name": "Children's Colorado North Campus", "city": "Broomfield", "type": "hospital", "lat": 40.00239, "lon": -104.99322, "source": "osm"}
 ]
