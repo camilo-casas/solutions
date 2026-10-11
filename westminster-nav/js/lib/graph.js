@@ -19,7 +19,7 @@ export function turnOf(rel) {
   return rel > 0 ? 'right' : 'left';
 }
 
-class MinHeap {
+export class MinHeap {
   constructor() { this.k = []; this.v = []; }
   get size() { return this.k.length; }
   push(key, val) {

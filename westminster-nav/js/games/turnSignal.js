@@ -4,11 +4,11 @@ import { bearing, toCardinal, CARDINAL_NAMES } from '../lib/geo.js';
 import { el, onKeys, scoreBar, stopwatch } from '../ui.js';
 import { mapPanel } from '../map.js';
 import * as store from '../store.js';
-import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime, DISTRICT_MI, districtMeters } from './common.js';
+import { COLORS, stationPicker, stationCard, gridNote, directionsList, driveTime, firstDueCall, FIRST_DUE_NOTE } from './common.js';
 
 export function turnSignal(root, ctx) {
   const G = ctx.graph;
-  const picker = stationPicker(ctx, 'turn', () => ask());
+  const picker = stationPicker(ctx, 'turn', () => ask(), 'Closest station (any address)');
   const head = el('div', { class: 'game-head' });
   const stage = el('div', { class: 'stage' });
   const { el: mapEl, map } = mapPanel(ctx);
@@ -17,20 +17,21 @@ export function turnSignal(root, ctx) {
 
   const renderHead = () => head.replaceChildren(
     el('div', { class: 'row' }, picker.el),
-    el('small', { class: 'muted' }, `Addresses come from the station's district: anywhere within about ${DISTRICT_MI} miles of the station.`),
+    el('small', { class: 'muted' }, FIRST_DUE_NOTE),
     scoreBar(store.stats('turn')));
 
   // Some stations send almost every call the same way. Aim for an even split
   // of lefts and rights so the answer can't be memorized per station.
   function makeQuestion() {
     const want = Math.random() < 0.5 ? 'left' : 'right';
-    const s = picker.get();
+    const only = picker.chosen();
     let fallback = null;
     for (let tries = 0; tries < 25; tries++) {
-      const st = tries < 15 ? s : picker.get();
+      // A random address, answered by its closest station (first due).
+      const call = firstDueCall(ctx, only);
+      if (!call) continue;
+      const { a, station: st } = call;
       const start = ctx.stationNode(st);
-      // Anywhere in the station's district, as in Responder.
-      const a = addressAwayFrom(ctx, [st.lat, st.lon], 0, districtMeters(st));
       if (ctx.addressNode(a) === start) continue;
       const target = ctx.addressNode(a);
       const { opts } = G.departureOptions(start, st.facing, st.street, target);

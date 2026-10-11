@@ -12,7 +12,7 @@ import { mapPanel } from '../map.js';
 import { Windshield } from '../windshield.js';
 import { freewayExits, exitFor, exitTab, dirWord } from '../lib/exits.js';
 import * as store from '../store.js';
-import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime, DISTRICT_MI, districtMeters } from './common.js';
+import { COLORS, stationPicker, stationCard, gridNote, directionsList, driveTime, firstDueCall, FIRST_DUE_NOTE } from './common.js';
 import { NEEDS, pickNeed, capabilityOf } from '../lib/hospitals.js';
 
 const LOOK = 40; // degrees counted as "straight ahead"
@@ -38,7 +38,7 @@ function drive(root, ctx, mode) {
   });
   const reachable = hospitals.filter((h) => h.reach);
 
-  const picker = isT ? null : stationPicker(ctx, mode, () => start());
+  const picker = isT ? null : stationPicker(ctx, mode, () => start(), 'Closest station (any address)');
   // Transporter: each hospital can be switched on or off; calls go to a random one that's on.
   const enabledHospitals = () => reachable.filter((h) => !prefs.off.includes(h.name));
   let hospOpen = false;
@@ -79,7 +79,7 @@ function drive(root, ctx, mode) {
     ` ${label}`);
   const renderHead = () => head.replaceChildren(...[
     el('div', { class: 'row' }, isT ? null : picker.el, toggle('hints', 'Hints')),
-    isT ? null : el('small', { class: 'muted' }, `Calls stay in the station's district: addresses come from anywhere within about ${DISTRICT_MI} miles of the station.`),
+    isT ? null : el('small', { class: 'muted' }, FIRST_DUE_NOTE),
     isT ? hospToggles() : null,
     isT && hospitals.length > reachable.length
       ? el('small', { class: 'muted' }, `Not drivable yet (no connected streets in the map data): ${hospitals.filter((h) => !h.reach).map((h) => h.name).join(', ')}.`)
@@ -614,10 +614,11 @@ function drive(root, ctx, mode) {
           from: a, to: h, call, best: { cost: tree.dist[s], path: G.pathFrom(s, tree) }, startFacing: null,
         };
       } else {
-        const st = picker.get();
+        // A random address, answered by its closest station (first due).
+        const call = firstDueCall(ctx, picker.chosen());
+        if (!call) continue;
+        const { a, station: st } = call;
         const s = ctx.stationNode(st);
-        // Anywhere in the district, from next door to its far edge.
-        const a = addressAwayFrom(ctx, [st.lat, st.lon], 0, districtMeters(st));
         const target = ctx.addressNode(a);
         if (target === s) continue;
         const { opts } = G.departureOptions(s, st.facing, st.street, target);
@@ -985,6 +986,7 @@ function drive(root, ctx, mode) {
     window.WFD_DEBUG.drive = {
       state: () => g,
       graph: G,
+      ctx,
       ahead: () => lookAhead(),
       peek(seq) {
         const saved = { ...g, trail: g.trail.slice() };
