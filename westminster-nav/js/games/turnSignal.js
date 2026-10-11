@@ -4,7 +4,7 @@ import { bearing, toCardinal, CARDINAL_NAMES } from '../lib/geo.js';
 import { el, onKeys, scoreBar, stopwatch } from '../ui.js';
 import { mapPanel } from '../map.js';
 import * as store from '../store.js';
-import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime } from './common.js';
+import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime, DISTRICT_MI, districtMeters } from './common.js';
 
 export function turnSignal(root, ctx) {
   const G = ctx.graph;
@@ -17,6 +17,7 @@ export function turnSignal(root, ctx) {
 
   const renderHead = () => head.replaceChildren(
     el('div', { class: 'row' }, picker.el),
+    el('small', { class: 'muted' }, `Addresses come from the station's district: anywhere within about ${DISTRICT_MI} miles of the station.`),
     scoreBar(store.stats('turn')));
 
   // Some stations send almost every call the same way. Aim for an even split
@@ -28,7 +29,9 @@ export function turnSignal(root, ctx) {
     for (let tries = 0; tries < 25; tries++) {
       const st = tries < 15 ? s : picker.get();
       const start = ctx.stationNode(st);
-      const a = addressAwayFrom(ctx, [st.lat, st.lon], 600);
+      // Anywhere in the station's district, as in Responder.
+      const a = addressAwayFrom(ctx, [st.lat, st.lon], 0, districtMeters(st));
+      if (ctx.addressNode(a) === start) continue;
       const target = ctx.addressNode(a);
       const { opts } = G.departureOptions(start, st.facing, st.street, target);
       if (!(opts.left && opts.right && isFinite(opts.left.cost) && isFinite(opts.right.cost))) continue;

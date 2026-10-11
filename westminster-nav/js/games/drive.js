@@ -12,7 +12,8 @@ import { mapPanel } from '../map.js';
 import { Windshield } from '../windshield.js';
 import { freewayExits, exitFor, exitTab, dirWord } from '../lib/exits.js';
 import * as store from '../store.js';
-import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime } from './common.js';
+import { COLORS, stationPicker, stationCard, addressAwayFrom, gridNote, directionsList, driveTime, DISTRICT_MI, districtMeters } from './common.js';
+import { NEEDS, pickNeed, capabilityOf } from '../lib/hospitals.js';
 
 const LOOK = 40; // degrees counted as "straight ahead"
 const SPEED = 13; // m/s, for backing-up cost
@@ -20,10 +21,6 @@ const SPEED = 13; // m/s, for backing-up cost
 export function responder(root, ctx) { return drive(root, ctx, 'responder'); }
 export function transporter(root, ctx) { return drive(root, ctx, 'transporter'); }
 
-// Each station's district reaches about 3 to 4 miles out; Responder calls stay
-// inside it. A station in data/stations.json can set its own "radiusMi".
-const DISTRICT_MI = 3.5;
-const districtMi = (st) => st.radiusMi || DISTRICT_MI;
 
 function drive(root, ctx, mode) {
   const G = ctx.graph;
@@ -59,7 +56,7 @@ function drive(root, ctx, mode) {
         },
       }, `${on ? '✓ ' : ''}${h.name}`);
     })),
-    el('small', { class: 'muted' }, 'Tap a hospital to switch it on or off. Calls go to a random hospital that\'s on.'));
+    el('small', { class: 'muted' }, 'Tap a hospital to switch it on or off. Each call goes to one of the closest hospitals that\'s on and can take the patient: freestanding ERs and smaller hospitals for minor complaints, full-service hospitals for serious medical calls, a Level I trauma center for major trauma, Children\'s for kids.'));
   const ws = new Windshield(ctx, { vehicle: isT ? 'ambulance' : 'engine' });
   let seen = null; // what the windshield last showed: { trail, heading, pending }
   const head = el('div', { class: 'game-head' });
@@ -577,31 +574,50 @@ function drive(root, ctx, mode) {
     render();
   }
 
+  // ---- Transporter destinations ---------------------------------------------
+  // The patient's need decides which hospitals fit; the call goes to the
+  // closest of those that are switched on (now and then the next closest,
+  // when it's nearly as close).
+  const trees = new Map();
+  const treeFor = (h) => { if (!trees.has(h.name)) trees.set(h.name, G.costsTo(h.node)); return trees.get(h.name); };
+  function chooseHospital(s) {
+    const pool = enabledHospitals().length ? enabledHospitals() : reachable;
+    const need = pickNeed();
+    const timed = pool.map((h) => ({ h, t: treeFor(h).dist[s] })).filter((x) => isFinite(x.t)).sort((a, b) => a.t - b.t);
+    const fit = timed.filter((x) => capabilityOf(x.h.name).some((c) => need.accepts.includes(c)));
+    const list = fit.length ? fit : timed;
+    if (!list.length) return null;
+    const second = list.length > 1 && list[1].t <= list[0].t * 1.2 + 60 && Math.random() < 0.3;
+    return { need, complaint: pick(need.complaints), chosen: list[second ? 1 : 0], options: list.slice(0, 3), fallback: !fit.length };
+  }
+
   // ---- Setup ----------------------------------------------------------------
   function start() {
     renderHead();
     stage.replaceChildren();
     for (let tries = 0; tries < 20; tries++) {
       if (isT) {
-        const h = pick(enabledHospitals().length ? enabledHospitals() : reachable);
-        if (!h) { stage.append(el('div', { class: 'panel error' }, 'No hospital in data/landmarks.json is inside the map area.')); return; }
-        const a = addressAwayFrom(ctx, h.p, 1500);
+        if (!reachable.length) { stage.append(el('div', { class: 'panel error' }, 'No hospital in data/landmarks.json is inside the map area.')); return; }
+        const a = ctx.randomAddress();
         const s = ctx.addressNode(a);
-        const target = h.node;
         const outs = G.out[s];
         if (!outs.length) continue;
+        const call = chooseHospital(s);
+        if (!call) continue;
+        const h = call.chosen.h;
+        if (distance(a.p, h.p) < 1500) continue;
+        const target = h.node;
         const e0 = pick(outs);
-        const tree = G.costsTo(target);
-        if (!isFinite(tree.dist[s])) continue;
+        const tree = treeFor(h);
         g = {
           node: s, start: s, target, heading: G.headingOut(e0), street: shortName(G.edges[e0].name), startStreet: shortName(G.edges[e0].name),
-          from: a, to: h, best: { cost: tree.dist[s], path: G.pathFrom(s, tree) }, startFacing: null,
+          from: a, to: h, call, best: { cost: tree.dist[s], path: G.pathFrom(s, tree) }, startFacing: null,
         };
       } else {
         const st = picker.get();
         const s = ctx.stationNode(st);
         // Anywhere in the district, from next door to its far edge.
-        const a = addressAwayFrom(ctx, [st.lat, st.lon], 0, districtMi(st) * 1609.344);
+        const a = addressAwayFrom(ctx, [st.lat, st.lon], 0, districtMeters(st));
         const target = ctx.addressNode(a);
         if (target === s) continue;
         const { opts } = G.departureOptions(s, st.facing, st.street, target);
@@ -822,7 +838,8 @@ function drive(root, ctx, mode) {
     stage.append(...[
       el('div', { class: 'prompt drive-prompt' },
         isT
-          ? el('div', { class: 'patient' }, el('span', { class: 'face-sub' }, 'Patient loaded at'), el('div', { class: 'patient-addr' }, ctx.addressLabel(g.from)))
+          ? el('div', { class: 'patient' }, el('span', { class: 'face-sub' }, 'Patient loaded at'), el('div', { class: 'patient-addr' }, ctx.addressLabel(g.from)),
+            el('div', { class: 'patient-need' }, el('b', {}, g.call.complaint), ` · ${g.call.fallback ? 'no hospital that fits is switched on, so the closest one' : g.call.need.rule}`))
           : stationCard(g.station),
         el('div', { class: 'face-sub' }, isT ? 'Transport to' : 'Responding to'),
         el('div', { class: 'face-big addr' }, isT ? g.to.name : ctx.addressLabel(g.to)),
@@ -899,6 +916,9 @@ function drive(root, ctx, mode) {
       el('b', {}, arrived
         ? `${isT ? 'At the hospital' : 'On scene'}! Your drive ${driveTime(g.cost)} vs best ${driveTime(g.best.cost)}: ${Math.round(eff * 100)}% efficient (+${points})`
         : 'Here\'s the fastest route'),
+      isT ? el('p', { class: 'why-hospital' },
+        `${g.call.complaint}: ${g.call.fallback ? 'no hospital that fits was switched on, so the closest one' : g.call.need.rule}. `,
+        `Closest from the scene: ${g.call.options.map((o) => `${o.h.name} ${driveTime(o.t)}`).join(', ')}.`) : null,
       el('details', { open: !arrived || credit < 1 }, el('summary', {}, 'Suggested route'),
         isT ? el('ol', { class: 'directions' }, steps.map((st, i) => el('li', {},
           el('span', { class: `turn ${st.turn || ''}` }, i === 0 ? 'Head out' : st.turn === 'left' ? 'Turn left' : st.turn === 'right' ? 'Turn right' : st.turn === 'u-turn' ? 'Make a U-turn' : 'Continue'),

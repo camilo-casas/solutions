@@ -32,6 +32,12 @@ export function stationCard(s) {
 }
 
 /** Random address at least `minDist` meters from a point. */
+// Each station's district reaches about 3 to 4 miles out; Responder calls and
+// Turn Signal questions stay inside it. A station in data/stations.json can set
+// its own "radiusMi".
+export const DISTRICT_MI = 3.5;
+export const districtMeters = (st) => (st.radiusMi || DISTRICT_MI) * 1609.344;
+
 export function addressAwayFrom(ctx, p, minDist = 500, maxDist = Infinity) {
   if (isFinite(maxDist)) {
     const near = ctx.addresses.filter((a) => { const d = distance(a.p, p); return d >= minDist && d <= maxDist; });
