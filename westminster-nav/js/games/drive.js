@@ -625,21 +625,39 @@ function drive(root, ctx, mode) {
         if (!best) continue;
         g = { node: s, start: s, target, heading: st.facing, street: st.street, startStreet: st.street, station: st, to: a, best, startFacing: st.facing };
       }
-      Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, turnDist: 0, moves: 0, done: false, t0: performance.now(), msg: '', lastMove: 'forward' });
-      ws.reset({ node: g.node, heading: g.heading, street: g.street, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
-      seen = { trail: 1, heading: g.heading, pending: null };
-      render();
-      onKeys((e) => {
-        const k = e.key;
-        if (g.done) { if (k === 'Enter') start(); return; }
-        if (k === 'ArrowUp' || k === 'w') { e.preventDefault(); forward(); }
-        else if (k === 'ArrowDown' || k === 's') { e.preventDefault(); backward(); }
-        else if (k === 'ArrowLeft' || k === 'a') { e.preventDefault(); turn('left'); }
-        else if (k === 'ArrowRight' || k === 'd') { e.preventDefault(); turn('right'); }
-      });
+      lastCall = { ...g };
+      begin(lastCall);
       return;
     }
     stage.append(el('div', { class: 'panel error' }, 'Could not build a call. Try again or check Station setup.'));
+  }
+
+  // The call as it was dispatched, so "Retry" can run it again from the start.
+  let lastCall = null;
+  const retry = () => { if (lastCall) begin(lastCall); };
+
+  /** Put the truck at the start of a call (a new one, or the same one again). */
+  function begin(call) {
+    g = { ...call };
+    Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, turnDist: 0, moves: 0, done: false, t0: performance.now(), msg: '', lastMove: 'forward', result: null, slips: [] });
+    ahead = null;
+    tbtKey = '';
+    clearTimeout(msgTimer);
+    ws.reset({ node: g.node, heading: g.heading, street: g.street, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
+    seen = { trail: 1, heading: g.heading, pending: null };
+    render();
+    onKeys((e) => {
+      const k = e.key;
+      if (g.done) {
+        if (k === 'Enter') start();
+        else if (k === 'r' || k === 'R') retry();
+        return;
+      }
+      if (k === 'ArrowUp' || k === 'w') { e.preventDefault(); forward(); }
+      else if (k === 'ArrowDown' || k === 's') { e.preventDefault(); backward(); }
+      else if (k === 'ArrowLeft' || k === 'a') { e.preventDefault(); turn('left'); }
+      else if (k === 'ArrowRight' || k === 'd') { e.preventDefault(); turn('right'); }
+    });
   }
 
   // ---- Rendering ------------------------------------------------------------
@@ -925,7 +943,9 @@ function drive(root, ctx, mode) {
           ' onto ', el('b', {}, st.name), el('small', {}, ` · ${(st.dist / 1609.344).toFixed(2)} mi`))),
         el('li', {}, el('span', { class: 'turn arrive' }, 'Arrive'), ' at ', el('b', {}, dest)))
           : directionsList(steps, dest)),
-      el('button', { class: 'btn primary', onclick: start }, 'Next call ↵'));
+      el('div', { class: 'row' },
+        el('button', { class: 'btn', onclick: retry, title: 'Run this same call again from the start (R)' }, '↺ Retry this call'),
+        el('button', { class: 'btn primary', onclick: start }, 'Next call ↵')));
     render();
   }
   const arrive = () => finish(true);
