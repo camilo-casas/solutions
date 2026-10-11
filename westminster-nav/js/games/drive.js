@@ -641,6 +641,7 @@ function drive(root, ctx, mode) {
     g = { ...call };
     Object.assign(g, { prev: -1, pending: null, trail: [G.pt(g.node)], cost: 0, dist: 0, turnDist: 0, moves: 0, done: false, t0: performance.now(), msg: '', lastMove: 'forward', result: null, slips: [] });
     ahead = null;
+    anim = null;
     tbtKey = '';
     clearTimeout(msgTimer);
     ws.reset({ node: g.node, heading: g.heading, street: g.street, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
@@ -670,14 +671,40 @@ function drive(root, ctx, mode) {
     msgTimer = setTimeout(() => { if (g) { g.msg = ''; render(); } }, 2200);
   }
 
+  // The trail drawn on the map stops at the truck: while a move animates, only
+  // the part of it already driven is shown.
+  let anim = null; // { base, pts, idx }: trail length before the move, the move's points, progress
+  function shownTrail(p) {
+    if (!anim || !p || g.done) return g.trail;
+    const { pts } = anim;
+    const kx = Math.cos((p[0] * Math.PI) / 180);
+    const d2 = (a, b) => ((a[0] - b[0]) ** 2) + ((a[1] - b[1]) * kx) ** 2;
+    // Nearest segment of the move to the truck, searching forward from the last one.
+    let best = anim.idx;
+    let bestD = Infinity;
+    for (let i = anim.idx; i < pts.length - 1; i++) {
+      const [a, b] = [pts[i], pts[i + 1]];
+      const vx = b[0] - a[0];
+      const vy = (b[1] - a[1]) * kx;
+      const L = vx * vx + vy * vy || 1e-12;
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * kx * vy) / L));
+      const d = d2(p, [a[0] + t * vx, a[1] + (t * vy) / kx]);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    anim.idx = best;
+    return [...g.trail.slice(0, anim.base), ...pts.slice(1, best + 1), p];
+  }
+
   /** Animate the windshield from what it last showed to the current state. */
   function syncView() {
     if (!seen) return;
     if (g.trail.length < seen.trail) {
+      anim = null;
       // Backed up to a slip lane: jump the view there.
       ws.reset({ node: g.node, heading: g.heading, street: g.street, dist: g.dist, target: g.to.p, targetLabel: isT ? g.to.name : ctx.addressLabel(g.to) });
     } else if (g.trail.length > seen.trail) {
-      ws.go({ kind: g.lastMove, pts: g.trail.slice(seen.trail - 1), heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
+      anim = { base: seen.trail, pts: g.trail.slice(seen.trail - 1), idx: 0 };
+      ws.go({ kind: g.lastMove, pts: anim.pts, heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
     } else if (Math.abs(angleDiff(seen.heading, g.heading)) > 0.5 || seen.pending !== g.pending) {
       ws.go({ kind: 'turn', heading: g.heading, street: g.street, turning: !!g.pending, dist: g.dist });
     }
@@ -897,7 +924,7 @@ function drive(root, ctx, mode) {
     const now = performance.now();
     if (now - lastFollow < 30) return;
     lastFollow = now;
-    map.set({ markers: mapMarkers(truck) });
+    map.set({ markers: mapMarkers(truck), routes: [{ pts: shownTrail(p), color: COLORS.user, width: 4 }] });
     map.follow(p, null, h);
   };
 
@@ -907,7 +934,7 @@ function drive(root, ctx, mode) {
       el('b', {}, isT ? g.to.name : ctx.addressLabel(g.to)),
       isT && g.to.city ? el('span', { class: 'muted' }, ` · ${g.to.city}`) : null);
     const at = !g.done && truck ? truck : { p: G.pt(g.node), h: g.heading };
-    const routes = [{ pts: g.trail, color: COLORS.user, width: 4 }];
+    const routes = [{ pts: g.done ? g.trail : shownTrail(at.p), color: COLORS.user, width: 4 }];
     if (g.done) routes.unshift({ pts: G.pathPoints(g.best.path), color: COLORS.best, width: 6, alpha: 0.5 });
     map.set({ routes, markers: mapMarkers(at) });
     // Heading-up while driving, with the truck low on the map so you see what's ahead.
