@@ -433,7 +433,6 @@ export class Windshield {
       .map((m) => ({ m, dist: Math.hypot(m.x - cx, m.y - cy) }))
       .filter(({ m, dist }) => dist < MARK_RANGE && cam(m.x, m.y)[2] > -60)
       .sort((a, b) => b.dist - a.dist);
-    const tags = [];
     for (const { m, dist } of shown) {
       const k = Math.max(1, (dist / MARK_GROW) ** MARK_EXAG);
       const haze = Math.min(0.55, dist / 16000);
@@ -480,32 +479,8 @@ export class Windshield {
         g.fill();
         if (f.flat && dist < 2500) { g.strokeStyle = shade('#3a3a3a', 1, haze); g.lineWidth = 1; g.stroke(); }
       }
-      // A small name tag above, so a new driver knows what they're looking at.
-      if (dist > 120) {
-        const top = cam(m.x, m.y, k * m.top + 4 * k);
-        if (top[2] > NEAR) tags.push({ at: scr(top), text: m.label, dist, alpha: g.globalAlpha });
-      }
       g.restore();
     }
-    // Nearest name first; one that would overlap another moves up a line.
-    g.save();
-    g.font = '600 11px system-ui, sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'bottom';
-    g.lineWidth = 3;
-    const placed = [];
-    for (const t of tags.sort((a, b) => a.dist - b.dist)) {
-      const w = g.measureText(t.text).width + 6;
-      let [x, y] = t.at;
-      while (placed.some((q) => Math.abs(q.x - x) < (q.w + w) / 2 && Math.abs(q.y - y) < 13)) y -= 13;
-      placed.push({ x, y, w });
-      g.globalAlpha = t.alpha;
-      g.strokeStyle = 'rgba(255,255,255,0.75)';
-      g.strokeText(t.text, x, y);
-      g.fillStyle = 'rgba(30,40,55,0.9)';
-      g.fillText(t.text, x, y);
-    }
-    g.restore();
   }
 
   paintMountains(g, W, HZ, F, h) {
