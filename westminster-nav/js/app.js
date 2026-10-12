@@ -94,7 +94,6 @@ function home(root, ctx) {
       el('p', {}, el('b', {}, 'Which side of the street: '), 'odd numbers are on the north and west sides, even numbers on the south and east. Remember ',
         el('b', {}, 'NOW'), ' (North, Odd, West) and ', el('b', {}, 'SEE'), ' (South, Even, East).')),
     el('p', { class: 'foot' },
-      el('a', { href: '#/setup' }, 'Station setup'), ' · ',
       el('a', { href: '#/scores' }, 'Scoreboard'), ' · ',
       el('button', {
         class: 'link',

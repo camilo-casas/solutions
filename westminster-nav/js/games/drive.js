@@ -683,7 +683,7 @@ function drive(root, ctx, mode) {
       begin(lastCall);
       return;
     }
-    stage.append(el('div', { class: 'panel error' }, 'Could not build a call. Try again or check Station setup.'));
+    stage.append(el('div', { class: 'panel error' }, 'Could not build a call. Try again.'));
   }
 
   // ---- Undo -----------------------------------------------------------------

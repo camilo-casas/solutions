@@ -110,7 +110,7 @@ Map data © OpenStreetMap contributors, ODbL.
 
 Some one-way streets can be driven both ways by apparatus: these exceptions live in `APPARATUS_TWO_WAY` in `js/lib/overrides.js` and are applied when the map loads, so they survive map-data rebuilds. Today: 72nd Way (W 72nd Pl) between Osceola and 72nd Ave at Station 1, which apparatus may run east on to reach 72nd Ave.
 
-To adjust one, open **Station setup** (link at the bottom of the home page), tap the map, pick the street and facing, then **Export stations.json** and commit it.
+To adjust one, open **Station setup** (no link on the site; go to `#/setup` at the end of the site's address, e.g. `yoursite.com/#/setup`), tap the map, pick the street and facing, then **Export stations.json** and commit it.
 
 ## Hospitals
 

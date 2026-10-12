@@ -49,7 +49,7 @@ export function turnSignal(root, ctx) {
     const q = makeQuestion();
     stage.replaceChildren();
     if (!q) {
-      stage.append(el('div', { class: 'panel error' }, 'Could not build a question: check that the station sits on a two-way street in Station setup.'));
+      stage.append(el('div', { class: 'panel error' }, 'Could not build a question. Try again.'));
       return;
     }
     const timer = el('span', { class: 'timer' }, '0.0s');
